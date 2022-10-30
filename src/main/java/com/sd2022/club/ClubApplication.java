@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 
 @SpringBootApplication
-@EntityScan({ "com.sd2022.entities.models"})
+@EntityScan({ "com.sd2022.entities.models", "com.sd2022.entities.dtos"})
 public class ClubApplication {
 
 	public static void main(String[] args) {
