@@ -8,6 +8,8 @@ import com.sd2022.club.service.base.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,14 +21,14 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
     private IClubRepository clubRepo;
 
     @Override
-    public ClubDTO findById(int id) {
+    public ResponseEntity<ClubDTO> findById(int id) {
         Club club = clubRepo.findById(id);
         if(club.isDeleted()) return null;
-        return toDTO(club);
+        return new ResponseEntity<>(toDTO(club), HttpStatus.OK);
     }
 
     @Override
-    public BaseResultDTO<ClubDTO> getAll(Pageable page){
+    public ResponseEntity<BaseResultDTO<ClubDTO>> getAll(Pageable page){
 
 
         List<ClubDTO> dtos = clubRepo.findByDeleted(page,false)
@@ -34,31 +36,34 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
                                 .getContent();
         BaseResultDTO<ClubDTO> result = new ClubResultDTO();
         result.setDtos(dtos);
-        return result;
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     @Override
-    public ClubDTO add(ClubDTO club){
+    public ResponseEntity<ClubDTO> add(ClubDTO club){
         Club ent = toEntity(club);
         clubRepo.save(ent);
 
         ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
 
-        return result;
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
 
     @Override
-    public boolean remove(int id){
+    public ResponseEntity remove(int id){
        try{
            Club club = clubRepo.findById(id);
 
-           if(club.isDeleted()) return false;
+           if(club == null || club.isDeleted()) {
+               return new ResponseEntity<String>("El elemento no existe", HttpStatus.BAD_REQUEST);
+           }
            club.setDeleted(true);
            clubRepo.save(club);
-           return true;
+           return new ResponseEntity<String>("Borrado con exito", HttpStatus.OK);
+
        }catch (Exception e) {
-           return false;
+           return new ResponseEntity<String>("Ocurrio un error inesperado", HttpStatus.BAD_REQUEST);
        }
 
     }
@@ -67,15 +72,15 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
 
 
     @Override
-    public ClubDTO findByCancha(String cancha){
+    public ResponseEntity<ClubDTO> findByCancha(String cancha){
         Club club = clubRepo.findByCancha(cancha);
         if(club.isDeleted()) return null;
 
-        return toDTO(club);
+        return new ResponseEntity<ClubDTO>(toDTO(club), HttpStatus.OK);
     }
 
     @Override
-    public BaseResultDTO<ClubDTO> findBySede(String sede, Pageable page){
+    public ResponseEntity<BaseResultDTO<ClubDTO>> findBySede(String sede, Pageable page){
         List<ClubDTO> dtos =  clubRepo.findBySedeAndDeleted(sede, false, page)
                                 .stream()
                                 .filter(c -> !c.isDeleted())
@@ -84,11 +89,11 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
 
         BaseResultDTO<ClubDTO> result = new ClubResultDTO();
         result.setDtos(dtos);
-        return result;
+        return new ResponseEntity<BaseResultDTO<ClubDTO>>(result, HttpStatus.OK);
     }
 
     @Override
-    public ClubDTO edit(int id, ClubDTO club){
+    public ResponseEntity edit(int id, ClubDTO club){
         if(club.getId() == id){
 
             Club entity = clubRepo.findById(id);
@@ -98,13 +103,13 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
                 entity.setCancha(club.getCancha());
                 clubRepo.save(entity);
 
-                return toDTO(clubRepo.findById(id));
+                return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
             } else{
-                return null;
+                return new ResponseEntity<String>("No existe el recurso que intentas editar", HttpStatus.BAD_REQUEST);
             }
 
         } else{
-            return null;
+            return new ResponseEntity<String>("No se pueden actualizar las claves primarias", HttpStatus.BAD_REQUEST);
         }
 
 
