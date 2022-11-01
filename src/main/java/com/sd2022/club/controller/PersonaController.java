@@ -48,5 +48,13 @@ public class PersonaController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity delete(@PathVariable(value = "id") int id){
+        try{
+            return service.remove(id);
+        } catch (Exception e){
+            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 }
