@@ -4,7 +4,7 @@ import com.sd2022.club.dao.IClubRepository;
 import com.sd2022.club.dtos.base.BaseResultDTO;
 import com.sd2022.club.dtos.club.ClubDTO;
 import com.sd2022.club.dtos.club.ClubResultDTO;
-import com.sd2022.club.service.base.BaseServiceImpl;
+import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -41,12 +41,21 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
 
     @Override
     public ResponseEntity<ClubDTO> add(ClubDTO club){
-        Club ent = toEntity(club);
-        clubRepo.save(ent);
+        Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
+        if (exist == null || exist.isDeleted()){
+            Club ent = toEntity(club);
 
-        ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
 
-        return new ResponseEntity<>(result, HttpStatus.OK);
+            clubRepo.save(ent);
+
+            ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
+
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        }
+
+
+
+        return new ResponseEntity("Ya existe un club que juega en esa cancha", HttpStatus.BAD_REQUEST);
     }
 
 
@@ -96,16 +105,34 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
     public ResponseEntity edit(int id, ClubDTO club){
         if(club.getId() == id){
 
-            Club entity = clubRepo.findById(id);
-            if(!entity.isDeleted()){
-                entity.setNombreClub(club.getNombre());
-                entity.setSede(club.getSede());
-                entity.setCancha(club.getCancha());
-                clubRepo.save(entity);
 
-                return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
-            } else{
-                return new ResponseEntity<String>("No existe el recurso que intentas editar", HttpStatus.BAD_REQUEST);
+
+            Club entity = clubRepo.findById(id);
+
+            if(club.getCancha().trim().toUpperCase().equals(entity.getCancha())){
+                if(!entity.isDeleted()){
+                    entity.setNombreClub(club.getNombre());
+                    entity.setSede(club.getSede());
+                    entity.setCancha(club.getCancha());
+                    clubRepo.save(entity);
+
+                    return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                } else{
+                    return new ResponseEntity<String>("No existe el recurso que intentas editar", HttpStatus.BAD_REQUEST);
+                }
+
+            } else {
+                Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
+
+                if(exist == null || exist.isDeleted()){
+                    entity.setNombreClub(club.getNombre());
+                    entity.setSede(club.getSede());
+                    entity.setCancha(club.getCancha());
+                    clubRepo.save(entity);
+                    return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                } else{
+                    return new ResponseEntity("Ya existe un club que juega en esa cancha", HttpStatus.BAD_REQUEST);
+                }
             }
 
         } else{
@@ -131,9 +158,9 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
     @Override
     public Club toEntity(ClubDTO dto){
         Club entity = new Club();
-        entity.setCancha(dto.getCancha());
-        entity.setSede(dto.getSede());
-        entity.setNombreClub(dto.getNombre());
+        entity.setCancha(dto.getCancha().trim().toUpperCase());
+        entity.setSede(dto.getSede().trim().toUpperCase());
+        entity.setNombreClub(dto.getNombre().trim().toUpperCase());
         return entity;
     }
 }

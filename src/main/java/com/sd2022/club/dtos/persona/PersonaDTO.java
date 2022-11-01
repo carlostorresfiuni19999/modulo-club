@@ -22,5 +22,5 @@ public class PersonaDTO extends BaseDTO implements Serializable {
     private String username;
     private String nacimiento;
     private int cat;
-    private List<String> roles;
+    private int idRol;
 }
