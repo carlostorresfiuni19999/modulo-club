@@ -5,7 +5,8 @@ import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleDTO;
 import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleResultDTO;
 import com.sd2022.club.service.baseService.IBaseService;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 
 public interface ITraspasoDetalleService extends IBaseService<TraspasoDetalleDTO, BaseResultDTO<TraspasoDetalleDTO>> {
-    public TraspasoDetalleResultDTO getByIdTraspaso(int idTraspaso, Pageable page);
+    public ResponseEntity getByIdTraspaso(int idTraspaso, Pageable page);
 }

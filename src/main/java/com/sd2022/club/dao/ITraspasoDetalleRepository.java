@@ -16,4 +16,6 @@ public interface ITraspasoDetalleRepository  extends JpaRepository<TraspasoDetal
     @Query(value = "select td from TraspasoDetalle td where td.traspaso.id =  :idTraspaso ",
     countQuery = "select count(td) from TraspasoDetalle td where td.traspaso.id =  :idTraspaso ")
     public Page<TraspasoDetalle> findByIdTraspaso(@Param("idTraspaso") int idTraspaso, Pageable page);
+
+    public Page<TraspasoDetalle> findAll(Pageable page);
 }
