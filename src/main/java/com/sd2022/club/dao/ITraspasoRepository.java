@@ -6,9 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.Date;
 
+@Repository
 public interface ITraspasoRepository extends JpaRepository<Traspaso, Integer> {
     public Traspaso save(Traspaso traspaso);
     public Traspaso findById(int id);
