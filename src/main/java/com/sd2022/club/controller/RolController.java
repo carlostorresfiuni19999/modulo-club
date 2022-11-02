@@ -24,7 +24,7 @@ public class RolController {
         return service.findById(id);
     }
 
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<RolDTO> save(@RequestBody RolDTO rol){
         return service.add(rol);
     }

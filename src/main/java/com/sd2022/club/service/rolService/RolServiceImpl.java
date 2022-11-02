@@ -5,7 +5,9 @@ import com.sd2022.club.dao.IRolRepository;
 import com.sd2022.club.dtos.rol.RolDTO;
 import com.sd2022.club.dtos.rol.RolResultDTO;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
+import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +18,12 @@ import java.util.List;
 @Service
 public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> implements IRolSerivice{
 
+    @Autowired
     private IRolRepository rolRepo;
+
+    @Autowired
     private IPersonaRepository personaRepo;
+
 
     @Override
     public Rol toEntity(RolDTO dto) {
@@ -66,7 +72,14 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
 
     @Override
     public ResponseEntity remove(int id) {
+
+        Persona p = personaRepo.findByRol(id);
        try{
+           if(p != null) {
+               p.setRol(null);
+               personaRepo.save(p);
+           }
+
            rolRepo.deleteById(id);
            return new ResponseEntity<String>("Borrado con exito", HttpStatus.OK);
        } catch (Exception e){
@@ -92,10 +105,12 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
 
     @Override
     public ResponseEntity add(RolDTO dto) {
-        Rol ent = rolRepo.findById(dto.getId());
-        if(ent == null){
+
+        boolean exist = rolRepo.existsByRol(dto.getRol());
+
+        if(!exist){
             rolRepo.save(toEntity((dto)));
-            return new ResponseEntity<RolDTO>(toDTO(rolRepo.findById(dto.getId())), HttpStatus.OK);
+            return new ResponseEntity<RolDTO>(toDTO(rolRepo.findByRol(dto.getRol())), HttpStatus.OK);
         }
 
         return new ResponseEntity("Ya existe el rol que intentas crear", HttpStatus.BAD_REQUEST);

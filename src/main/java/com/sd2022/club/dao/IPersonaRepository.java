@@ -23,18 +23,9 @@ public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
 
     public Persona findByUsername(String username);
 
-    @Query(
-            value="SELECT PERSONA.IDPERSONA, PERSONA.NOMBRE" +
-                    ",PERSONA.APELLIDO, PERSONA.DOCUMENTO, PERSONA.DOCUMENTO, " +
-                    "PERSONA.DOCUMENTOTIPO, PERSONA.EMAIL, PERSONA.USERNAME, " +
-                    "PERSONA.NACIMIENTO, PERSONA.CAT, PERSONA.deleted, " +
-                    "PERSONA.IDCLUB" +
-                    "FROM PERSONA INNER JOIN ROLES_PERSONAS ON " +
-                    "PERSONA.IDPERSONA = ROLES_PERSONAS.IDPERSONA WHERE " +
-                    " PERSONA.deleted = false AND ROLES_PERSONAS.IDROL = :idRol ",
-            nativeQuery = true
-    )
-    public List<Persona> findByRol(@Param("idRol") int idRol);
+    @Query(value = "Select p from Persona p where " +
+            " p.rol.id = :rol ")
+    public Persona findByRol(@Param("rol") int rol);
 
 
 

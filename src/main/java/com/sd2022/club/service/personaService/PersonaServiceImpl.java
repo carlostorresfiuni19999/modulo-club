@@ -91,9 +91,8 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
     @Override
     public ResponseEntity<PersonaDTO> add(PersonaDTO dto) {
-        personaRepo.save(toEntity(dto));
 
-        Persona personaSaved = personaRepo.findById(dto.getId());
+        Persona personaSaved = personaRepo.save(toEntity(dto));
 
         return new ResponseEntity<PersonaDTO>(toDTO(personaSaved), HttpStatus.OK);
 
@@ -168,15 +167,13 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         ent.setNombre(dto.getNombre());
         ent.setApellido(dto.getApellido());
         ent.setCat(dto.getCat());
-
         Club club = clubRepo.findById(dto.getIdClub());
-        ent.setClub(club == null ? null : club);
-
+        ent.setClub(club);
         ent.setEmail(dto.getEmail());
         ent.setDocumento(dto.getDocumento());
         ent.setDocumentoTipo(dto.getDocumentoTipo());
         ent.setUsername(dto.getUsername());
-        ent.setNacimiento(new Date(dto.getNacimiento()));
+        ent.setNacimiento(dto.getNacimiento());
 
         Rol rol = rolRepo.findById(dto.getIdRol());
         ent.setRol(rol);
@@ -195,9 +192,19 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         dto.setCat(entity.getCat());
         dto.setEmail(entity.getEmail());
         dto.setUsername(entity.getUsername());
-        dto.setNacimiento(entity.getNacimiento().toString());
-        dto.setIdClub(entity.getClub().getId());
-        dto.setIdRol(entity.getRol().getId());
+        dto.setNacimiento(entity.getNacimiento());
+        if(entity.getClub() == null || entity.getClub().isDeleted()){
+            dto.setIdClub(-1);
+        }else{
+            dto.setIdClub(entity.getClub().getId());
+        }
+
+        if(entity.getRol() == null){
+            dto.setIdRol(-1);
+        }else{
+            dto.setIdRol(entity.getRol().getId());
+        }
+
         return dto;
     }
 }

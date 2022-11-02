@@ -18,5 +18,9 @@ public interface IRolRepository extends JpaRepository<Rol, Integer> {
 
     public void deleteById(int id);
 
+    @Query("select count(rol) > 0 from Rol rol where rol.deleted = false AND rol.rol = :rol")
+    public boolean existsByRol(@Param("rol") String rol);
+
+
 
 }

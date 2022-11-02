@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 
@@ -20,7 +21,7 @@ public class PersonaDTO extends BaseDTO implements Serializable {
     private String documentoTipo;
     private String documento;
     private String username;
-    private String nacimiento;
+    private Date nacimiento;
     private int cat;
     private int idRol;
 }

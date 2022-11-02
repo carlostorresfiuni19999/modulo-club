@@ -57,4 +57,15 @@ public class PersonaController {
         }
     }
 
+    @GetMapping("/nombre/{nombre}page/{page}")
+    public ResponseEntity getByNombre(
+            @PathVariable(value = "nombre") String nombre,
+            @PathVariable(value = "page") int page){
+        try{
+            return service.findByNombre(nombre.trim().toUpperCase(), PageRequest.of(page, 5));
+        } catch (Exception e){
+            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

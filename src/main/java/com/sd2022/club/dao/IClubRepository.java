@@ -12,4 +12,5 @@ public interface IClubRepository extends JpaRepository<Club, Integer> {
     public Club findByCancha(String cancha);
     public Page<Club> findBySedeAndDeleted(String sede, boolean deleted, Pageable page);
 
+
 }
