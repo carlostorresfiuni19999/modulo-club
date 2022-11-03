@@ -6,6 +6,7 @@ import com.sd2022.club.service.rolService.RolServiceImpl;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,8 @@ public class RolController {
     @Autowired
     private RolServiceImpl service;
 
+    @Autowired
+    private Environment env;
 
     @GetMapping("/{id}")
     public ResponseEntity<RolDTO> findById(@PathVariable(value = "id") int id){
@@ -41,6 +44,6 @@ public class RolController {
 
     @GetMapping("page/{page}")
     public ResponseEntity<RolResultDTO> list(@PathVariable(value = "page") int page){
-        return service.getAll(PageRequest.of(page, 5));
+        return service.getAll(PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));
     }
 }

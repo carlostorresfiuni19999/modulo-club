@@ -7,7 +7,9 @@ import com.sd2022.club.dtos.rol.RolResultDTO;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +26,10 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     @Autowired
     private IPersonaRepository personaRepo;
 
+    private Logger log = Logger.getLogger(RolServiceImpl.class);
 
+    @Autowired
+    private Environment env;
     @Override
     public Rol toEntity(RolDTO dto) {
         Rol rol = new Rol();
@@ -36,7 +41,10 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     public ResponseEntity findByRol(String rol) {
         Rol ent = rolRepo.findByRol(rol);
 
-        if(ent == null || ent.isDeleted()) return new ResponseEntity<String>("No se encontro resultado",HttpStatus.NOT_FOUND);
+        if(ent == null || ent.isDeleted()) {
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
+        }
         return new ResponseEntity<RolDTO>(toDTO(ent), HttpStatus.OK);
     }
 
@@ -53,7 +61,10 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     public ResponseEntity<RolDTO> findById(int id) {
         Rol ent = rolRepo.findById(id);
 
-        if(ent == null || ent.isDeleted()) return new ResponseEntity<RolDTO>(new RolDTO(), HttpStatus.NOT_FOUND);
+        if(ent == null || ent.isDeleted()) {
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity<RolDTO>(HttpStatus.NOT_FOUND);
+        }
         return new ResponseEntity<RolDTO>(toDTO(ent), HttpStatus.OK);
     }
 
@@ -81,20 +92,23 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
            }
 
            rolRepo.deleteById(id);
-           return new ResponseEntity<String>("Borrado con exito", HttpStatus.OK);
+           return new ResponseEntity(HttpStatus.OK);
        } catch (Exception e){
-           return new ResponseEntity<String>("Ocurrio un error al borrar el registro", HttpStatus.BAD_REQUEST);
+           log.error(e);
+           return new ResponseEntity( HttpStatus.INTERNAL_SERVER_ERROR);
        }
     }
 
     @Override
     public ResponseEntity<RolDTO> edit(int id, RolDTO dto) {
         if(id != dto.getId()){
+            log.error(env.getProperty("primarykeyerror"));
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
         Rol entity = new Rol();
         if(entity == null || entity.isDeleted()){
+            log.error(env.getProperty("notfound"));
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
@@ -112,8 +126,8 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
             rolRepo.save(toEntity((dto)));
             return new ResponseEntity<RolDTO>(toDTO(rolRepo.findByRol(dto.getRol())), HttpStatus.OK);
         }
-
-        return new ResponseEntity("Ya existe el rol que intentas crear", HttpStatus.BAD_REQUEST);
+        log.error(env.getProperty(env.getProperty("existsrolerror")));
+        return new ResponseEntity(env.getProperty("existsrolerror"), HttpStatus.BAD_REQUEST);
 
     }
 }

@@ -27,6 +27,14 @@ public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
             " p.rol.id = :rol ")
     public Persona findByRol(@Param("rol") int rol);
 
+    @Query(value = "select (count(p) > 0) from Persona p " +
+            " where p.deleted = false AND p.username = :username")
+    public boolean existsByUsername(@Param("username") String username);
+
+    @Query(value = "select (count(p) > 0) from Persona p " +
+            " where p.deleted = false AND p.username = :email")
+    public boolean existsByEmail(@Param("email") String email);
+
 
 
 }

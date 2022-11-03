@@ -6,7 +6,9 @@ import com.sd2022.club.dtos.club.ClubDTO;
 import com.sd2022.club.dtos.club.ClubResultDTO;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,44 +20,64 @@ import java.util.stream.Collectors;
 public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDTO<ClubDTO>> implements IClubService{
 
     @Autowired
+    private Environment env;
+    @Autowired
     private IClubRepository clubRepo;
+
+    private Logger log = Logger.getLogger(ClubServiceImpl.class);
 
     @Override
     public ResponseEntity<ClubDTO> findById(int id) {
-        Club club = clubRepo.findById(id);
-        if(club.isDeleted()) return null;
-        return new ResponseEntity<>(toDTO(club), HttpStatus.OK);
+        try{
+            Club club = clubRepo.findById(id);
+            if(club.isDeleted()) return new ResponseEntity<>( HttpStatus.NOT_FOUND);;
+            return new ResponseEntity<>(toDTO(club), HttpStatus.OK);
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
     }
 
     @Override
     public ResponseEntity<BaseResultDTO<ClubDTO>> getAll(Pageable page){
 
+        try{
+            List<ClubDTO> dtos = clubRepo.findByDeleted(page,false)
+                    .map(this::toDTO)
+                    .getContent();
+            BaseResultDTO<ClubDTO> result = new ClubResultDTO();
+            result.setDtos(dtos);
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
 
-        List<ClubDTO> dtos = clubRepo.findByDeleted(page,false)
-                        .map(this::toDTO)
-                                .getContent();
-        BaseResultDTO<ClubDTO> result = new ClubResultDTO();
-        result.setDtos(dtos);
-        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     @Override
     public ResponseEntity<ClubDTO> add(ClubDTO club){
-        Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
-        if (exist == null || exist.isDeleted()){
-            Club ent = toEntity(club);
+        try {
+            Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
+            if (exist == null || exist.isDeleted()){
+                Club ent = toEntity(club);
+                clubRepo.save(ent);
 
+                ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
 
-            clubRepo.save(ent);
+                return new ResponseEntity<>(result, HttpStatus.OK);
+            }
 
-            ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
-
-            return new ResponseEntity<>(result, HttpStatus.OK);
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
 
 
-        return new ResponseEntity("Ya existe un club que juega en esa cancha", HttpStatus.BAD_REQUEST);
+
+        return new ResponseEntity(env.getProperty("canchaerror"), HttpStatus.BAD_REQUEST);
     }
 
 
@@ -65,14 +87,15 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
            Club club = clubRepo.findById(id);
 
            if(club == null || club.isDeleted()) {
-               return new ResponseEntity<String>("El elemento no existe", HttpStatus.BAD_REQUEST);
+               return new ResponseEntity<String>(env.getProperty("notfound"), HttpStatus.NOT_FOUND);
            }
            club.setDeleted(true);
            clubRepo.save(club);
-           return new ResponseEntity<String>("Borrado con exito", HttpStatus.OK);
+           return new ResponseEntity(HttpStatus.OK);
 
        }catch (Exception e) {
-           return new ResponseEntity<String>("Ocurrio un error inesperado", HttpStatus.BAD_REQUEST);
+           log.error(e);
+           return new ResponseEntity<String>( HttpStatus.INTERNAL_SERVER_ERROR);
        }
 
     }
@@ -82,64 +105,89 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
 
     @Override
     public ResponseEntity<ClubDTO> findByCancha(String cancha){
-        Club club = clubRepo.findByCancha(cancha);
-        if(club.isDeleted()) return null;
+        try {
+            Club club = clubRepo.findByCancha(cancha);
+            if(club.isDeleted()) {
+                log.error(env.getProperty("notfound"));
+                return new ResponseEntity(HttpStatus.NOT_FOUND);
+            }
 
-        return new ResponseEntity<ClubDTO>(toDTO(club), HttpStatus.OK);
+            return new ResponseEntity<ClubDTO>(toDTO(club), HttpStatus.OK);
+
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
     }
 
     @Override
     public ResponseEntity<BaseResultDTO<ClubDTO>> findBySede(String sede, Pageable page){
-        List<ClubDTO> dtos =  clubRepo.findBySedeAndDeleted(sede, false, page)
-                                .stream()
-                                .filter(c -> !c.isDeleted())
-                                .map(this::toDTO)
-                                .collect(Collectors.toList());
+        try{
+            List<ClubDTO> dtos =  clubRepo.findBySedeAndDeleted(sede, false, page)
+                    .stream()
+                    .filter(c -> !c.isDeleted())
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
 
-        BaseResultDTO<ClubDTO> result = new ClubResultDTO();
-        result.setDtos(dtos);
-        return new ResponseEntity<BaseResultDTO<ClubDTO>>(result, HttpStatus.OK);
+            BaseResultDTO<ClubDTO> result = new ClubResultDTO();
+            result.setDtos(dtos);
+            return new ResponseEntity<BaseResultDTO<ClubDTO>>(result, HttpStatus.OK);
+
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
     }
 
     @Override
     public ResponseEntity edit(int id, ClubDTO club){
-        if(club.getId() == id){
+        try{
+            if(club.getId() == id){
 
 
 
-            Club entity = clubRepo.findById(id);
+                Club entity = clubRepo.findById(id);
 
-            if(club.getCancha().trim().toUpperCase().equals(entity.getCancha())){
-                if(!entity.isDeleted()){
-                    entity.setNombreClub(club.getNombre());
-                    entity.setSede(club.getSede());
-                    entity.setCancha(club.getCancha());
-                    clubRepo.save(entity);
+                if(club.getCancha().trim().toUpperCase().equals(entity.getCancha())){
+                    if(!entity.isDeleted()){
+                        entity.setNombreClub(club.getNombre());
+                        entity.setSede(club.getSede());
+                        entity.setCancha(club.getCancha());
+                        clubRepo.save(entity);
 
-                    return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
-                } else{
-                    return new ResponseEntity<String>("No existe el recurso que intentas editar", HttpStatus.BAD_REQUEST);
+                        return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                    } else{
+                        log.error(env.getProperty("notfound"));
+                        return new ResponseEntity( HttpStatus.NOT_FOUND);
+                    }
+
+                } else {
+                    Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
+
+                    if(exist == null || exist.isDeleted()){
+                        entity.setNombreClub(club.getNombre());
+                        entity.setSede(club.getSede());
+                        entity.setCancha(club.getCancha());
+                        clubRepo.save(entity);
+                        return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                    } else{
+                        log.error(env.getProperty("canchaerror"));
+                        return new ResponseEntity(env.getProperty("canchaerror"), HttpStatus.BAD_REQUEST);
+                    }
                 }
 
-            } else {
-                Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
-
-                if(exist == null || exist.isDeleted()){
-                    entity.setNombreClub(club.getNombre());
-                    entity.setSede(club.getSede());
-                    entity.setCancha(club.getCancha());
-                    clubRepo.save(entity);
-                    return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
-                } else{
-                    return new ResponseEntity("Ya existe un club que juega en esa cancha", HttpStatus.BAD_REQUEST);
-                }
+            } else{
+                log.error(env.getProperty("primarykeyerror"));
+                return new ResponseEntity<String>(env.getProperty("primarykeyerror"), HttpStatus.BAD_REQUEST);
             }
 
-        } else{
-            return new ResponseEntity<String>("No se pueden actualizar las claves primarias", HttpStatus.BAD_REQUEST);
+
+        } catch (Exception e){
+            log.error(e);
+            return  new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
-
     }
 
     @Override

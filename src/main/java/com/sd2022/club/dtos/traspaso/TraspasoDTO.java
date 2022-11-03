@@ -11,7 +11,6 @@ import java.util.Date;
 @Setter
 public class TraspasoDTO extends BaseDTO implements Serializable {
     private int id;
-    private int costoTotal;
     private Date fechaTraspaso;
     private static final long serialVersionUID = 1L;
 }

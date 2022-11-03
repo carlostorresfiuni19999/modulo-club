@@ -10,14 +10,15 @@ import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -32,11 +33,17 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
     @Autowired
     private IClubRepository clubRepo;
 
+    @Autowired
+    private Environment env;
+
+    private Logger log = Logger.getLogger(PersonaServiceImpl.class);
+
     @Override
     public ResponseEntity<PersonaDTO> findById(int id) {
         Persona p = personaRepo.findById(id);
         if(p == null || p.isDeleted()){
-            return new ResponseEntity("No existe el Recurso", HttpStatus.NOT_FOUND);
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity( HttpStatus.NOT_FOUND);
         }
         return new ResponseEntity<PersonaDTO>(toDTO(p), HttpStatus.OK);
     }
@@ -60,23 +67,47 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
         Persona del = personaRepo.findById(id);
         if(del == null || del.isDeleted()){
-            return new ResponseEntity<String>("No existe el Recurso", HttpStatus.NOT_FOUND);
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
-        del.setDeleted(true);
-        personaRepo.save(del);
+        try {
+            del.setDeleted(true);
+            personaRepo.save(del);
+            return new ResponseEntity(HttpStatus.OK);
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
 
-        return new ResponseEntity("Se ha borrado con exito",HttpStatus.OK);
+
+
     }
 
     @Override
     public ResponseEntity edit(int id, PersonaDTO dto) {
         if(id != dto.getId()){
-            return new ResponseEntity<String>("No se puede actualizar", HttpStatus.BAD_REQUEST);
+            log.error(env.getProperty("primarykeyerror"));
+            return new ResponseEntity<String>(env.getProperty("primarykeyerror"), HttpStatus.BAD_REQUEST);
         } else{
             Persona p = personaRepo.findById(dto.getId());
 
+            Rol rol = rolRepo.findById(dto.getIdRol());
+            if(personaRepo.existsByEmail(dto.getEmail())){
+                log.error(env.getProperty("existemailerror"));
+                return new ResponseEntity(env.getProperty("existemailerror"), HttpStatus.BAD_REQUEST);
+            }
+            if(personaRepo.existsByUsername(dto.getUsername())){
+                log.error(env.getProperty("existusernameerror"));
+                return new ResponseEntity(env.getProperty("existusernameerror"), HttpStatus.BAD_REQUEST);
+            }
+            if(rol == null || rol.equals(env.getProperty("roldefault"))){
+                log.error(env.getProperty("rolerror"));
+                return new ResponseEntity(env.getProperty("rolerror"), HttpStatus.BAD_REQUEST);
+            }
+
             if(p == null || p.isDeleted()){
-                return new ResponseEntity<String>("No existe el Recurso", HttpStatus.NOT_FOUND);
+                log.error("no existe el recurso");
+                return new ResponseEntity<String>(env.getProperty("notfound"), HttpStatus.NOT_FOUND);
             } else{
                 Persona upd = toEntity(dto);
                 upd.setId(dto.getId());
@@ -90,11 +121,34 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
     }
 
     @Override
-    public ResponseEntity<PersonaDTO> add(PersonaDTO dto) {
+    public ResponseEntity add(PersonaDTO dto) {
+        Rol rol = rolRepo.findById(dto.getIdRol());
+        System.out.println(rol.getRol()+" "+env.getProperty("roldefault"));
 
-        Persona personaSaved = personaRepo.save(toEntity(dto));
 
-        return new ResponseEntity<PersonaDTO>(toDTO(personaSaved), HttpStatus.OK);
+        Persona toSave = toEntity(dto);
+
+        if(personaRepo.existsByEmail(dto.getEmail())){
+            log.error(env.getProperty("existemailerror"));
+            return new ResponseEntity(env.getProperty("existemailerror"), HttpStatus.BAD_REQUEST);
+        }
+        if(personaRepo.existsByUsername(dto.getUsername())){
+            log.error(env.getProperty("existusernameerror"));
+            return new ResponseEntity(env.getProperty("existusernameerror"), HttpStatus.BAD_REQUEST);
+        }
+
+        if(toSave.getClub() == null || toSave.getClub().isDeleted()){
+            toSave = personaRepo.save(toSave);
+
+            return new ResponseEntity<PersonaDTO>(toDTO(toSave), HttpStatus.OK);
+        } else{
+            if(rol == null || rol.getRol().equals(env.getProperty("roldefault"))){
+                log.error(env.getProperty("rolerror"));
+                return new ResponseEntity(env.getProperty("rolerror"), HttpStatus.BAD_REQUEST);
+            }
+
+            return new ResponseEntity<PersonaDTO>(toDTO(toSave), HttpStatus.OK);
+        }
 
     }
 
@@ -143,7 +197,8 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         Persona ent = personaRepo.findByUsername(username);
 
         if(ent == null || ent.isDeleted()){
-            return new ResponseEntity("Recurso no encontrado", HttpStatus.NOT_FOUND);
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity( HttpStatus.NOT_FOUND);
         } else{
             return new ResponseEntity<PersonaDTO>(toDTO(ent), HttpStatus.OK);
         }
@@ -154,7 +209,8 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         Persona ent = personaRepo.findByEmail(email);
 
         if(ent == null || ent.isDeleted()){
-            return new ResponseEntity("Recurso no encontrado", HttpStatus.NOT_FOUND);
+            log.error(env.getProperty("notfound"));
+            return new ResponseEntity( HttpStatus.NOT_FOUND);
         } else{
             return new ResponseEntity<PersonaDTO>(toDTO(ent), HttpStatus.OK);
         }

@@ -8,11 +8,10 @@ import com.sd2022.club.dtos.base.BaseResultDTO;
 import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleDTO;
 import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleResultDTO;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
-import com.sd2022.entities.models.Club;
-import com.sd2022.entities.models.Persona;
-import com.sd2022.entities.models.Traspaso;
-import com.sd2022.entities.models.TraspasoDetalle;
+import com.sd2022.entities.models.*;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +22,9 @@ import java.util.List;
 @Service
 public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleDTO, TraspasoDetalle, BaseResultDTO<TraspasoDetalleDTO>> implements ITraspasoDetalleService {
 
+    private Logger log = Logger.getLogger(TraspasoDetalleServiceImpl.class);
+    @Autowired
+    private Environment env;
     @Autowired
     private ITraspasoRepository traspasoRepo;
 
@@ -39,37 +41,30 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         Traspaso cabecera = traspasoRepo.findById(dto.getIdTraspaso());
 
         if(cabecera == null){
-            throw new Exception("No se puede hacer um traspaso sin la cabecera principal");
+            throw new Exception(env.getProperty("cabeceraerror"));
         }
         ent.setTraspaso(cabecera);
         Club destino = clubRepo.findById(dto.getClubDestino());
         Persona traspasable = personaRepo.findById(dto.getIdPersona());
 
         if(traspasable == null || traspasable.isDeleted()) {
-            throw new Exception("Jugador Seleccionado no existe");
+            throw new Exception(env.getProperty("personanotfound"));
         }
 
-        if(!(traspasable.getRol() != null && traspasable.getRol().getRol().equals("JUGADOR"))){
-            throw new Exception("No se pueden trasferir a una Persona que no es jugador");
-
+        if(traspasable.getRol().getRol().equals(env.getProperty("roldefault"))){
+            throw new Exception(env.getProperty("notransferible"));
         }
 
         Club clubOrigen = clubRepo.findById(traspasable.getClub().getId());
 
         if(clubOrigen == null || clubOrigen.isDeleted()){
-            throw new Exception("No se ha encontrado ningun club asociado al jugador");
+            throw new Exception(env.getProperty("cluborigennotfound"));
+        }
+        if( destino == null ||destino.isDeleted()){
+            throw new Exception(env.getProperty("clubdestinoerror"));
         }
 
-        if(clubOrigen.getId() == destino.getId()){
-            throw new Exception("No se pueden trasferir al mismo club de procedencia");
 
-        }
-
-
-
-        if(destino.isDeleted()){
-            throw new Exception("No existe el club destino");
-        }
 
         ent.setClubDestino(destino);
         ent.setCosto(dto.getCosto());
@@ -88,6 +83,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         dto.setClubOrigen(entity.getClubOrigen().getId());
         dto.setClubDestino(entity.getClubDestino().getId());
         dto.setIdPersona(entity.getJugador().getId());
+        dto.setId(entity.getId());
         return dto;
     }
 
@@ -115,49 +111,103 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
     }
 
     @Override
-    public ResponseEntity remove(int id) {
+    public ResponseEntity<String> remove(int id) {
         try{
             TraspasoDetalle del = traspasoDetalleRepo.findById(id);
-            Traspaso cabecera = traspasoRepo.findById(del.getId());
-            cabecera.setCostoTotal(cabecera.getCostoTotal() - del.getCosto());
+            Traspaso cabecera = del.getTraspaso();
+            Club c = del.getClubOrigen();
+            Persona p = del.getJugador();
+            p.setClub(c);
+            personaRepo.save(p);
             traspasoDetalleRepo.deleteById(id);
-            return new ResponseEntity(HttpStatus.OK);
+            return new ResponseEntity<>(HttpStatus.OK);
         }catch (Exception e){
-            e.printStackTrace();
+            log.error(e);
         }
 
-        return new ResponseEntity(HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @Override
     public ResponseEntity<TraspasoDetalleDTO> edit(int id, TraspasoDetalleDTO dto) {
         if(id != dto.getId()){
-            return new ResponseEntity("No se actualizan las claves", HttpStatus.BAD_REQUEST);
+            log.error(env.getProperty("primarykeyerror"));
+            return new ResponseEntity(env.getProperty("primarykeyerror"), HttpStatus.BAD_REQUEST);
 
         }
 
         TraspasoDetalle ent = traspasoDetalleRepo.findById(id);
 
         if(ent.getTraspaso().getId() != dto.getIdTraspaso()){
-            return new ResponseEntity("No se cambian de Cabeceras", HttpStatus.BAD_REQUEST);
+            log.error(env.getProperty("cabeceraerror"));
+            return new ResponseEntity(env.getProperty("cabeceraerror"), HttpStatus.BAD_REQUEST);
         }
 
         try{
             Traspaso cabecera = traspasoRepo.findById(dto.getIdTraspaso());
-            cabecera.setCostoTotal(cabecera.getCostoTotal() - (ent.getCosto() - dto.getCosto()));
+
+            Persona persona = personaRepo.findById(dto.getIdPersona());
+
+            if(persona.getRol().getRol().equals(env.getProperty("defaultrol"))){
+                    log.error(env.getProperty("notrasnferible"));
+                return new ResponseEntity(env.getProperty("notransferible"), HttpStatus.BAD_REQUEST);
+            }
+
+            Club dest = clubRepo.findById(dto.getClubDestino());
+            persona.setClub(dest);
+            personaRepo.save(persona);
+
             traspasoRepo.save(cabecera);
-            ent = toEntity(dto);
+            try{
+                ent = toEntity(dto);
+            } catch (Exception e1){
+                log.error(e1);
+                return new ResponseEntity(e1.getMessage(), HttpStatus.BAD_REQUEST);
+            }
+
+
             traspasoDetalleRepo.save(ent);
+
             return new ResponseEntity<>(dto, HttpStatus.OK);
         } catch (Exception e){
-            e.printStackTrace();
+            log.error(e);
+            return new ResponseEntity( HttpStatus.INTERNAL_SERVER_ERROR);
+
         }
-        return null;
     }
 
     @Override
     public ResponseEntity<TraspasoDetalleDTO> add(TraspasoDetalleDTO dto) {
-        return null;
+        TraspasoDetalle td;
+        try {
+            td = toEntity(dto);
+
+            if(td.getClubDestino().getId() == dto.getClubOrigen()){
+                log.error(env.getProperty("cluborigenerror"));
+                return new ResponseEntity(env.getProperty("cluborigenerror"), HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.error(e);
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+            Persona p = td.getJugador();
+            Traspaso cabecera = td.getTraspaso();
+
+
+
+
+            if((p.getRol().getRol().equals(env.getProperty("defaultrol")))){
+                log.error(env.getProperty("notransferible"));
+                return new ResponseEntity(env.getProperty("notransferible"), HttpStatus.BAD_REQUEST);
+            }
+
+            p.setClub(td.getClubDestino());
+            personaRepo.save(p);
+            td = traspasoDetalleRepo.save(td);
+            traspasoRepo.save(cabecera);
+
+
+        return new ResponseEntity(toDTO(td), HttpStatus.OK);
     }
 
     @Override
