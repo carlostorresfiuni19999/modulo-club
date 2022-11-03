@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface ITraspasoDetalleRepository  extends JpaRepository<TraspasoDetalle, Integer> {
 
     public TraspasoDetalle save(TraspasoDetalle detalle);
@@ -18,4 +20,7 @@ public interface ITraspasoDetalleRepository  extends JpaRepository<TraspasoDetal
     public Page<TraspasoDetalle> findByIdTraspaso(@Param("idTraspaso") int idTraspaso, Pageable page);
 
     public Page<TraspasoDetalle> findAll(Pageable page);
+
+    @Query(value = "select td from TraspasoDetalle td where td.traspaso.id =  :idTraspaso ")
+    public List<TraspasoDetalle> findByIdTraspaso(@Param("idTraspaso") int idTraspaso);
 }

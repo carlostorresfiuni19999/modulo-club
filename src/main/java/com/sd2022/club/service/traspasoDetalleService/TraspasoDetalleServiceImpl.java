@@ -67,9 +67,8 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
 
 
 
-        if(destino == null || destino.isDeleted()){
+        if(destino.isDeleted()){
             throw new Exception("No existe el club destino");
-
         }
 
         ent.setClubDestino(destino);
@@ -109,16 +108,18 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
                 .map(this::toDTO)
                 .getContent();
 
-        BaseResultDTO<TraspasoDetalleDTO> result = new TraspasoDetalleResultDTO();
+        TraspasoDetalleResultDTO result = new TraspasoDetalleResultDTO();
 
         result.setDtos(dtos);
-
         return new ResponseEntity<BaseResultDTO<TraspasoDetalleDTO>>(result, HttpStatus.OK);
     }
 
     @Override
     public ResponseEntity remove(int id) {
         try{
+            TraspasoDetalle del = traspasoDetalleRepo.findById(id);
+            Traspaso cabecera = traspasoRepo.findById(del.getId());
+            cabecera.setCostoTotal(cabecera.getCostoTotal() - del.getCosto());
             traspasoDetalleRepo.deleteById(id);
             return new ResponseEntity(HttpStatus.OK);
         }catch (Exception e){
@@ -142,6 +143,9 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         }
 
         try{
+            Traspaso cabecera = traspasoRepo.findById(dto.getIdTraspaso());
+            cabecera.setCostoTotal(cabecera.getCostoTotal() - (ent.getCosto() - dto.getCosto()));
+            traspasoRepo.save(cabecera);
             ent = toEntity(dto);
             traspasoDetalleRepo.save(ent);
             return new ResponseEntity<>(dto, HttpStatus.OK);

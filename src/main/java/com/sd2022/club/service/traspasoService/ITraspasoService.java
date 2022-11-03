@@ -14,4 +14,8 @@ public interface ITraspasoService extends IBaseService<TraspasoDTO, BaseResultDT
     public ResponseEntity filtrarEntreFechas(Date inicio, Date fin, Pageable page);
     public Traspaso toEntity(TraspasoFullCreateDTO traspaso);
 
+    public ResponseEntity add(TraspasoFullCreateDTO traspaso);
+
+    public ResponseEntity edit(int id, TraspasoFullCreateDTO traspaso);
+
 }
