@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -131,12 +132,25 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        return new ResponseEntity(t, HttpStatus.OK);
+        return new ResponseEntity(toDTO(t), HttpStatus.OK);
     }
 
     @Override
-    public ResponseEntity filtrarEntreFechas(Date inicio, Date fin, Pageable page) {
-        List<TraspasoDTO> dtos = traspasoRepo.filtrarEntreFechas(inicio, fin, page)
+    public ResponseEntity filtrarEntreFechas(String inicio, String fin, Pageable page) {
+
+        Date fechaInicio;
+        Date fechaFin;
+
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MMM-dd");
+
+        try{
+            fechaInicio= format.parse(inicio);
+            fechaFin =format.parse(fin);
+        } catch (Exception e){
+            log.error(e);
+            return new ResponseEntity<>("Formato de fecha no valido, debe ser yyyy-mm-dd", HttpStatus.BAD_REQUEST);
+        }
+        List<TraspasoDTO> dtos = traspasoRepo.filtrarEntreFechas(fechaInicio, fechaFin, page)
                 .map(this::toDTO)
                 .getContent();
 

@@ -42,8 +42,8 @@ public class TraspasoController {
     }
 
     @GetMapping("/fechas/{inicio}/{fin}/{page}")
-    public ResponseEntity filtrarEnFechas(@PathVariable("inicio") Date inicio, @PathVariable("fin") Date fin, @PathVariable(value = "page") int page){
-        return service.filtrarEntreFechas(inicio, fin, PageRequest.of(page, Integer.parseInt(env.getProperty("pagenum"))));
+    public ResponseEntity filtrarEnFechas(@PathVariable("inicio") String inicio, @PathVariable("fin") String fin, @PathVariable(value = "page") int page){
+        return service.filtrarEntreFechas(inicio, fin, PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));
     }
 
 

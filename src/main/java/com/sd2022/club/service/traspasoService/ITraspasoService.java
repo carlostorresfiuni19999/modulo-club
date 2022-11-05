@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.Date;
 
 public interface ITraspasoService extends IBaseService<TraspasoDTO, BaseResultDTO<TraspasoDTO>> {
-    public ResponseEntity filtrarEntreFechas(Date inicio, Date fin, Pageable page);
+    public ResponseEntity filtrarEntreFechas(String inicio, String fin, Pageable page);
 
 
 }

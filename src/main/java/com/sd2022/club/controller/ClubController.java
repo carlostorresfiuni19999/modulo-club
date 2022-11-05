@@ -54,6 +54,11 @@ public class ClubController {
         return service.findByCancha(cancha);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ClubDTO> findById(@PathVariable(value = "id") int id){
+        return service.findById(id);
+    }
+
 
 
 }

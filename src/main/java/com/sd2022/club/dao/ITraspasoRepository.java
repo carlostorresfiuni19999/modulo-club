@@ -16,8 +16,9 @@ public interface ITraspasoRepository extends JpaRepository<Traspaso, Integer> {
     public Traspaso findById(int id);
     public Page<Traspaso> findAll(Pageable page);
 
-    @Query(value = "select t from Traspaso t where t.deleted = false AND t.fechaTraspaso " +
-            " BETWEEN :inicio AND :fin ")
+    @Query(value = "select t from Traspaso t where t.fechaTraspaso " +
+            " BETWEEN :inicio AND :fin ",
+    countQuery = "select count(t) from Traspaso  t where t.fechaTraspaso BETWEEN :inicio AND :fin")
     public Page<Traspaso> filtrarEntreFechas(@Param("inicio") Date fechaInicio, @Param("fin") Date fechaFin, Pageable page);
 
 
