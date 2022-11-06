@@ -3,8 +3,10 @@ package com.sd2022.club;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.ImportResource;
 
 @SpringBootApplication
+@ImportResource("classpath:memcached.xml")
 @EntityScan({ "com.sd2022.entities.models"})
 public class ClubApplication {
 
