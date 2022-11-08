@@ -4,17 +4,19 @@ import com.sd2022.club.dao.IClubRepository;
 import com.sd2022.club.dtos.base.BaseResultDTO;
 import com.sd2022.club.dtos.club.ClubDTO;
 import com.sd2022.club.dtos.club.ClubResultDTO;
+import com.sd2022.club.errors.BadRequestException;
+import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDTO<ClubDTO>> implements IClubService{
@@ -24,129 +26,65 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
     @Autowired
     private IClubRepository clubRepo;
 
-    private Logger log = Logger.getLogger(ClubServiceImpl.class);
+    @Autowired
+    private CacheManager cacheManager;
 
+    @Cacheable(value = "platform-cache", key = "'club_ap_' +#id")
     @Override
-    public ResponseEntity<ClubDTO> findById(int id) {
-        try{
+    public ClubDTO findById(int id) throws NotFoundException {
             Club club = clubRepo.findById(id);
-            if(club.isDeleted()) return new ResponseEntity<>( HttpStatus.NOT_FOUND);;
-            return new ResponseEntity<>(toDTO(club), HttpStatus.OK);
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
+            if(club.isDeleted()) throw new NotFoundException(env.getProperty("notfound"));
+            return toDTO(club);
     }
 
     @Override
-    public ResponseEntity<BaseResultDTO<ClubDTO>> getAll(Pageable page){
+    public BaseResultDTO<ClubDTO> getAll(Pageable page) {
 
-        try{
             List<ClubDTO> dtos = clubRepo.findByDeleted(page,false)
-                    .map(this::toDTO)
+                    .map(ent -> {
+                        ClubDTO d =  toDTO(ent);
+                        cacheManager.getCache("platform-cache").putIfAbsent("club_api_"+d.getId(), d);
+                        return d;
+                    })
                     .getContent();
             BaseResultDTO<ClubDTO> result = new ClubResultDTO();
             result.setDtos(dtos);
-            return new ResponseEntity<>(result, HttpStatus.OK);
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+            return result;
 
     }
-
     @Override
-    public ResponseEntity<ClubDTO> add(ClubDTO club){
-        try {
+    public ClubDTO add(ClubDTO club) throws BadRequestException {
+
             Club exist = clubRepo.findByCancha(club.getCancha().trim().toUpperCase());
             if (exist == null || exist.isDeleted()){
                 Club ent = toEntity(club);
-                clubRepo.save(ent);
+                ent = clubRepo.save(ent);
+                cacheManager.getCache("platform-cache").put("club_id_"+ent.getId(), toDTO(ent));
+                return toDTO(clubRepo.findById(ent.getId()));
 
-                ClubDTO result = toDTO(clubRepo.findById(ent.getId()));
-
-                return new ResponseEntity<>(result, HttpStatus.OK);
             }
 
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-
-
-
-        return new ResponseEntity(env.getProperty("canchaerror"), HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("canchaerror"));
     }
 
 
     @Override
-    public ResponseEntity remove(int id){
-       try{
+    @CacheEvict(value = "platform-cache", key = "'club_api_' +#id")
+    public void remove(int id) throws NotFoundException{
            Club club = clubRepo.findById(id);
 
            if(club == null || club.isDeleted()) {
-               return new ResponseEntity<String>(env.getProperty("notfound"), HttpStatus.NOT_FOUND);
+               throw new NotFoundException(env.getProperty("notfound"));
            }
            club.setDeleted(true);
            clubRepo.save(club);
-           return new ResponseEntity(HttpStatus.OK);
-
-       }catch (Exception e) {
-           log.error(e);
-           return new ResponseEntity<String>( HttpStatus.INTERNAL_SERVER_ERROR);
-       }
-
-    }
-
-
-
-
-    @Override
-    public ResponseEntity<ClubDTO> findByCancha(String cancha){
-        try {
-            Club club = clubRepo.findByCancha(cancha);
-            if(club.isDeleted()) {
-                log.error(env.getProperty("notfound"));
-                return new ResponseEntity(HttpStatus.NOT_FOUND);
-            }
-
-            return new ResponseEntity<ClubDTO>(toDTO(club), HttpStatus.OK);
-
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>( HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
     }
 
     @Override
-    public ResponseEntity<BaseResultDTO<ClubDTO>> findBySede(String sede, Pageable page){
-        try{
-            List<ClubDTO> dtos =  clubRepo.findBySedeAndDeleted(sede, false, page)
-                    .stream()
-                    .filter(c -> !c.isDeleted())
-                    .map(this::toDTO)
-                    .collect(Collectors.toList());
+    @CachePut(value ="platform-cache", key ="'club_api_' +#id")
+    public ClubDTO edit(int id, ClubDTO club) throws NotFoundException, BadRequestException{
 
-            BaseResultDTO<ClubDTO> result = new ClubResultDTO();
-            result.setDtos(dtos);
-            return new ResponseEntity<BaseResultDTO<ClubDTO>>(result, HttpStatus.OK);
-
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-    }
-
-    @Override
-    public ResponseEntity edit(int id, ClubDTO club){
-        try{
             if(club.getId() == id){
-
-
 
                 Club entity = clubRepo.findById(id);
 
@@ -157,10 +95,9 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
                         entity.setCancha(club.getCancha());
                         clubRepo.save(entity);
 
-                        return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                        return toDTO(entity);
                     } else{
-                        log.error(env.getProperty("notfound"));
-                        return new ResponseEntity( HttpStatus.NOT_FOUND);
+                        throw new NotFoundException(env.getProperty("notfound"));
                     }
 
                 } else {
@@ -171,23 +108,18 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
                         entity.setSede(club.getSede());
                         entity.setCancha(club.getCancha());
                         clubRepo.save(entity);
-                        return new ResponseEntity<ClubDTO>(toDTO(clubRepo.findById(id)), HttpStatus.OK);
+                        return toDTO(clubRepo.findById(id));
                     } else{
-                        log.error(env.getProperty("canchaerror"));
-                        return new ResponseEntity(env.getProperty("canchaerror"), HttpStatus.BAD_REQUEST);
+                        throw new BadRequestException(env.getProperty("canchaerror"));
                     }
                 }
 
             } else{
-                log.error(env.getProperty("primarykeyerror"));
-                return new ResponseEntity<String>(env.getProperty("primarykeyerror"), HttpStatus.BAD_REQUEST);
+                throw new BadRequestException(env.getProperty("primarykeyerror"));
             }
 
 
-        } catch (Exception e){
-            log.error(e);
-            return  new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+
     }
 
     @Override

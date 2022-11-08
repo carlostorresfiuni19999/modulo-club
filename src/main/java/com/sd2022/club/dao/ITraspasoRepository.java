@@ -12,14 +12,14 @@ import java.util.Date;
 
 @Repository
 public interface ITraspasoRepository extends JpaRepository<Traspaso, Integer> {
-    public Traspaso save(Traspaso traspaso);
-    public Traspaso findById(int id);
-    public Page<Traspaso> findAll(Pageable page);
+    Traspaso save(Traspaso traspaso);
+    Traspaso findById(int id);
+    Page<Traspaso> findAll(Pageable page);
 
     @Query(value = "select t from Traspaso t where t.fechaTraspaso " +
             " BETWEEN :inicio AND :fin ",
     countQuery = "select count(t) from Traspaso  t where t.fechaTraspaso BETWEEN :inicio AND :fin")
-    public Page<Traspaso> filtrarEntreFechas(@Param("inicio") Date fechaInicio, @Param("fin") Date fechaFin, Pageable page);
+    Page<Traspaso> filtrarEntreFechas(@Param("inicio") Date fechaInicio, @Param("fin") Date fechaFin, Pageable page);
 
 
 }

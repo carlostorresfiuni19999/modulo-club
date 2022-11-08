@@ -8,5 +8,5 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 
 public interface ITraspasoDetalleService extends IBaseService<TraspasoDetalleDTO, BaseResultDTO<TraspasoDetalleDTO>> {
-    public ResponseEntity getByIdTraspaso(int idTraspaso, Pageable page);
+    public TraspasoDetalleResultDTO getByIdTraspaso(int idTraspaso, Pageable page);
 }

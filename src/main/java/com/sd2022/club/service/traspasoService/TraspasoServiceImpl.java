@@ -4,8 +4,12 @@ import com.sd2022.club.dao.IPersonaRepository;
 import com.sd2022.club.dao.ITraspasoDetalleRepository;
 import com.sd2022.club.dao.ITraspasoRepository;
 import com.sd2022.club.dtos.base.BaseResultDTO;
+import com.sd2022.club.dtos.traspaso.TraspasoCreateDTO;
 import com.sd2022.club.dtos.traspaso.TraspasoDTO;
 import com.sd2022.club.dtos.traspaso.TraspasoDTOResult;
+import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleDTO;
+import com.sd2022.club.errors.BadRequestException;
+import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.club.service.traspasoDetalleService.TraspasoDetalleServiceImpl;
 import com.sd2022.entities.models.Club;
@@ -14,11 +18,12 @@ import com.sd2022.entities.models.Traspaso;
 import com.sd2022.entities.models.TraspasoDetalle;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.text.SimpleDateFormat;
@@ -43,6 +48,12 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     private ITraspasoDetalleRepository detalleRepo;
 
     @Autowired
+    private TraspasoDetalleServiceImpl detalleService;
+
+    @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
     private Environment env;
     @Override
     public Traspaso toEntity(TraspasoDTO dto) {
@@ -59,35 +70,38 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         return dto;
     }
 
+    @Cacheable(value = "platform-cache", key = "'traspaso_api_' +#id")
     @Override
-    public ResponseEntity<TraspasoDTO> findById(int id) {
+    public TraspasoDTO findById(int id) throws NotFoundException {
         Traspaso traspaso = traspasoRepo.findById(id);
 
         if(traspaso == null) {
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+           throw new NotFoundException(env.getProperty("notfound"));
 
         }
-        return new ResponseEntity<TraspasoDTO>(toDTO(traspaso), HttpStatus.OK);
+        return toDTO(traspaso);
     }
 
     @Override
-    public ResponseEntity<BaseResultDTO<TraspasoDTO>> getAll(Pageable page) {
+    public BaseResultDTO<TraspasoDTO> getAll(Pageable page) {
         List<TraspasoDTO> dtos = traspasoRepo.findAll(page)
-                .map(this::toDTO)
+                .map(r -> {
+                    TraspasoDTO d = toDTO(r);
+                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_api_"+d.getId(), d);
+                    return d;
+                })
                 .getContent();
 
         BaseResultDTO<TraspasoDTO> result = new TraspasoDTOResult();
         result.setDtos(dtos);
-        return new ResponseEntity<BaseResultDTO<TraspasoDTO>>(result, HttpStatus.OK);
+        return result;
     }
 
     @Override
-    public ResponseEntity remove(int id) {
+    public void remove(int id) throws NotFoundException {
         Traspaso cabecera = traspasoRepo.findById(id);
         if(cabecera == null) {
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+            throw new NotFoundException(env.getProperty("notfound"));
         }
 
 
@@ -99,69 +113,86 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
                 Persona p = detalle.getJugador();
                 Club origen = detalle.getClubOrigen();
                 p.setClub(origen);
+                cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+detalle.getId());
+                cacheManager.getCache("platform-cache").evictIfPresent("persona_api_"+p.getId());
                 personaRepo.save(p);
-               detalleRepo.deleteById(detalle.getId());
+                detalleRepo.deleteById(detalle.getId());
             } catch (Exception e){
                 log.error(e);
-                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
             }
         }
+        cacheManager.getCache("platform-cache").evictIfPresent("traspaso_api_"+id);
+        traspasoRepo.deleteById(id);
 
-        try{
-            traspasoRepo.deleteById(id);
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
 
-        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @Override
-    public ResponseEntity<TraspasoDTO> edit(int id, TraspasoDTO dto) {
+    public TraspasoDTO edit(int id, TraspasoDTO dto) {
         return null;
     }
 
     @Override
-    public ResponseEntity<TraspasoDTO> add(TraspasoDTO dto) {
-        Traspaso t = toEntity(dto);
-        try {
-            t = traspasoRepo.save(t);
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        return new ResponseEntity(toDTO(t), HttpStatus.OK);
+    public TraspasoDTO add(TraspasoDTO dto) {
+        return null;
     }
 
     @Override
-    public ResponseEntity filtrarEntreFechas(String inicio, String fin, Pageable page) {
+    public BaseResultDTO<TraspasoDTO> filtrarEntreFechas(String inicio, String fin, Pageable page) throws BadRequestException {
 
         Date fechaInicio;
         Date fechaFin;
 
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MMM-dd");
+        SimpleDateFormat format = new SimpleDateFormat(env.getProperty("formatofecha"));
 
         try{
             fechaInicio= format.parse(inicio);
             fechaFin =format.parse(fin);
         } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity<>("Formato de fecha no valido, debe ser yyyy-mm-dd", HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("fechaserror")+" "+env.getProperty("formatofecha"));
         }
         List<TraspasoDTO> dtos = traspasoRepo.filtrarEntreFechas(fechaInicio, fechaFin, page)
-                .map(this::toDTO)
+                .map(r -> {
+                    TraspasoDTO d = toDTO(r);
+                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_api_"+d.getId(), d);
+                    return d;
+                })
                 .getContent();
 
         BaseResultDTO<TraspasoDTO> result = new TraspasoDTOResult();
         result.setDtos(dtos);
-        return new ResponseEntity<BaseResultDTO<TraspasoDTO>>(result, HttpStatus.OK);
+        return result;
     }
 
+    @Override
+    @Transactional
+    public TraspasoDTO save(TraspasoCreateDTO traspaso) throws NotFoundException, BadRequestException {
+
+        Traspaso cabecera = toEntity(traspaso);
+        if(traspaso.getId() != 0){
+            cabecera.setId(traspaso.getId());
+            cacheManager.getCache("platform-cache").put("traspaso_api_"+ traspaso.getId(), cabecera);
+            cabecera = traspasoRepo.save(cabecera);
+
+            final List<TraspasoDetalle> detallesExistentes = detalleRepo.findByIdTraspaso(cabecera.getId());
+            detallesExistentes.forEach(td -> {
+                cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+td.getId());
+                detalleRepo.deleteById(td.getId());
+            });
 
 
+            for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
+                TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
+                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), nuevoDetalle);
+            }
+        } else{
+            cabecera = traspasoRepo.save(cabecera);
+            for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
+                detalleRepo.save(service.toEntity(detalle));
+                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), detalle);
+            }
+        }
 
-
-
+        return toDTO(cabecera);
+    }
 }

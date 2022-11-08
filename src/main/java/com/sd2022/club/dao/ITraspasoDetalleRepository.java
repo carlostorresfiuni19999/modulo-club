@@ -6,14 +6,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+@Repository
 public interface ITraspasoDetalleRepository  extends JpaRepository<TraspasoDetalle, Integer> {
 
-    public TraspasoDetalle save(TraspasoDetalle detalle);
-    public void deleteById(int id);
-    public TraspasoDetalle findById(int id);
+    TraspasoDetalle save(TraspasoDetalle detalle);
+    void deleteById(int id);
+    TraspasoDetalle findById(int id);
 
     @Query(value = "select td from TraspasoDetalle td where td.traspaso.id =  :idTraspaso ",
     countQuery = "select count(td) from TraspasoDetalle td where td.traspaso.id =  :idTraspaso ")

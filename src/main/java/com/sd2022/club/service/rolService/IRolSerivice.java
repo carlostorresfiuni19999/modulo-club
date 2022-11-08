@@ -8,7 +8,5 @@ import org.springframework.http.ResponseEntity;
 
 
 public interface IRolSerivice extends IBaseService<RolDTO, RolResultDTO> {
-    public RolDTO toDTO(Rol entity);
-    public Rol toEntity(RolDTO dto);
-    public ResponseEntity findByRol(String rol);
+
 }

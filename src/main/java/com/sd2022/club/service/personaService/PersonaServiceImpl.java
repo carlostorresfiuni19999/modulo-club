@@ -6,17 +6,20 @@ import com.sd2022.club.dao.IRolRepository;
 import com.sd2022.club.dtos.base.BaseResultDTO;
 import com.sd2022.club.dtos.persona.PersonaDTO;
 import com.sd2022.club.dtos.persona.PersonaResultDTO;
+import com.sd2022.club.errors.BadRequestException;
+import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.entities.models.Club;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -36,92 +39,94 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
     @Autowired
     private Environment env;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     private Logger log = Logger.getLogger(PersonaServiceImpl.class);
 
+    @Cacheable(value = "platform-cache",key = "'persona_api_' +#id")
     @Override
-    public ResponseEntity<PersonaDTO> findById(int id) {
+    public PersonaDTO findById(int id) throws NotFoundException {
         Persona p = personaRepo.findById(id);
         if(p == null || p.isDeleted()){
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity( HttpStatus.NOT_FOUND);
+           throw new NotFoundException(env.getProperty("notfound"));
         }
-        return new ResponseEntity<PersonaDTO>(toDTO(p), HttpStatus.OK);
+        return toDTO(p);
     }
 
     @Override
-    public ResponseEntity<BaseResultDTO<PersonaDTO>> getAll(Pageable page) {
+    public BaseResultDTO<PersonaDTO> getAll(Pageable page){
         List<PersonaDTO> dtos = personaRepo.findByDeleted(false, page)
-                .map(this::toDTO)
+                .map(r -> {
+                    PersonaDTO d = toDTO(r);
+                    cacheManager.getCache("platform-cache").putIfAbsent("persona_api_"+d.getId(), d);
+                    return d;
+                })
                 .getContent();
 
         BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
 
         result.setDtos(dtos);
 
-        return new ResponseEntity<BaseResultDTO<PersonaDTO>>(result, HttpStatus.OK);
+        return result;
 
     }
 
+    @CacheEvict(value = "platform-cache", key = "'persona_api_' +#id")
     @Override
-    public ResponseEntity remove(int id) {
+    public void remove(int id) throws  NotFoundException{
 
         Persona del = personaRepo.findById(id);
         if(del == null || del.isDeleted()){
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+            throw new NotFoundException(env.getProperty("notfound"));
         }
         try {
             del.setDeleted(true);
             personaRepo.save(del);
-            return new ResponseEntity(HttpStatus.OK);
         } catch (Exception e){
             log.error(e);
-            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
 
 
     }
 
+
     @Override
-    public ResponseEntity edit(int id, PersonaDTO dto) {
+    public PersonaDTO edit (int id, PersonaDTO dto) throws BadRequestException, NotFoundException{
         if(id != dto.getId()){
-            log.error(env.getProperty("primarykeyerror"));
-            return new ResponseEntity<String>(env.getProperty("primarykeyerror"), HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("primarykeyerror"));
         } else{
             Persona p = personaRepo.findById(dto.getId());
 
             Rol rol = rolRepo.findById(dto.getIdRol());
             if(personaRepo.existsByEmail(dto.getEmail())){
-                log.error(env.getProperty("existemailerror"));
-                return new ResponseEntity(env.getProperty("existemailerror"), HttpStatus.BAD_REQUEST);
+                throw new BadRequestException(env.getProperty("existemailerror"));
             }
             if(personaRepo.existsByUsername(dto.getUsername())){
-                log.error(env.getProperty("existusernameerror"));
-                return new ResponseEntity(env.getProperty("existusernameerror"), HttpStatus.BAD_REQUEST);
+                throw new BadRequestException(env.getProperty("existusernameerror"));
             }
             if(rol == null || rol.equals(env.getProperty("roldefault"))){
-                log.error(env.getProperty("rolerror"));
-                return new ResponseEntity(env.getProperty("rolerror"), HttpStatus.BAD_REQUEST);
+                throw new BadRequestException(env.getProperty("rolerror"));
             }
 
             if(p == null || p.isDeleted()){
-                log.error("no existe el recurso");
-                return new ResponseEntity<String>(env.getProperty("notfound"), HttpStatus.NOT_FOUND);
+                throw new NotFoundException(env.getProperty("notfound"));
             } else{
                 Persona upd = toEntity(dto);
                 upd.setId(dto.getId());
-
+                cacheManager.getCache("platform-cache").put("persona_api_"+dto.getId(), dto);
                 personaRepo.save(upd);
 
                 upd = personaRepo.findById(dto.getId());
-                return new ResponseEntity<PersonaDTO>(toDTO(upd), HttpStatus.OK);
+                return toDTO(upd);
             }
         }
     }
 
+
     @Override
-    public ResponseEntity add(PersonaDTO dto) {
+    public PersonaDTO add(PersonaDTO dto) throws BadRequestException{
         Rol rol = rolRepo.findById(dto.getIdRol());
         System.out.println(rol.getRol()+" "+env.getProperty("roldefault"));
 
@@ -129,92 +134,53 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         Persona toSave = toEntity(dto);
 
         if(personaRepo.existsByEmail(dto.getEmail())){
-            log.error(env.getProperty("existemailerror"));
-            return new ResponseEntity(env.getProperty("existemailerror"), HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("existemailerror"));
+
         }
         if(personaRepo.existsByUsername(dto.getUsername())){
-            log.error(env.getProperty("existusernameerror"));
-            return new ResponseEntity(env.getProperty("existusernameerror"), HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("existusernameerror"));
         }
 
         if(toSave.getClub() == null || toSave.getClub().isDeleted()){
             toSave = personaRepo.save(toSave);
-
-            return new ResponseEntity<PersonaDTO>(toDTO(toSave), HttpStatus.OK);
+            cacheManager.getCache("platform-cache").put("persona_api_"+toSave.getId(), toDTO(toSave));
+            return  toDTO(toSave);
         } else{
             if(rol == null || rol.getRol().equals(env.getProperty("roldefault"))){
                 log.error(env.getProperty("rolerror"));
-                return new ResponseEntity(env.getProperty("rolerror"), HttpStatus.BAD_REQUEST);
+
+                throw new BadRequestException(env.getProperty("rolerror"));
             }
 
-            return new ResponseEntity<PersonaDTO>(toDTO(toSave), HttpStatus.OK);
+            return toDTO(toSave);
         }
 
     }
 
-    @Override
-    public ResponseEntity<BaseResultDTO<PersonaDTO>> findByNombre(String nombre, Pageable page) {
-        List<PersonaDTO> dtos = personaRepo.findByNombreAndDeleted(nombre, false, page)
-                .map(this::toDTO)
-                .getContent();
 
-        BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
 
-        result.setDtos(dtos);
-
-        return new ResponseEntity<BaseResultDTO<PersonaDTO>>(result, HttpStatus.OK);
-    }
 
     @Override
-    public ResponseEntity<BaseResultDTO<PersonaDTO>> findByApellido(String apellido, Pageable page) {
-        List<PersonaDTO> dtos = personaRepo.findByApellidoAndDeleted(apellido, false, page)
-                .map(this::toDTO)
-                .getContent();
-
-        BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
-
-        result.setDtos(dtos);
-
-        return new ResponseEntity<BaseResultDTO<PersonaDTO>>(result, HttpStatus.OK);
-    }
-
-    @Override
-    public ResponseEntity<BaseResultDTO<PersonaDTO>> findByCat(int cat, Pageable page) {
+    public BaseResultDTO<PersonaDTO> findByCat(int cat, Pageable page) {
         List<PersonaDTO> dtos = personaRepo.findByCatAndDeleted(cat, false, page)
-                .map(this::toDTO)
+                .map(r -> {
+                    PersonaDTO d = toDTO(r);
+                    cacheManager.getCache("platform-cache").putIfAbsent("persona_api_"+d.getId(), d);
+                    return d;
+                })
                 .getContent();
 
         BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
 
         result.setDtos(dtos);
 
-        return new ResponseEntity<BaseResultDTO<PersonaDTO>>(result, HttpStatus.OK);
+        return result;
 
     }
 
-    @Override
-    public ResponseEntity<PersonaDTO> findByUsername(String username) {
-        Persona ent = personaRepo.findByUsername(username);
 
-        if(ent == null || ent.isDeleted()){
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity( HttpStatus.NOT_FOUND);
-        } else{
-            return new ResponseEntity<PersonaDTO>(toDTO(ent), HttpStatus.OK);
-        }
-    }
 
-    @Override
-    public ResponseEntity<PersonaDTO> findByEmail(String email) {
-        Persona ent = personaRepo.findByEmail(email);
 
-        if(ent == null || ent.isDeleted()){
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity( HttpStatus.NOT_FOUND);
-        } else{
-            return new ResponseEntity<PersonaDTO>(toDTO(ent), HttpStatus.OK);
-        }
-    }
 
     @Override
     public Persona toEntity(PersonaDTO dto) {

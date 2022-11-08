@@ -4,16 +4,21 @@ import com.sd2022.club.dao.IPersonaRepository;
 import com.sd2022.club.dao.IRolRepository;
 import com.sd2022.club.dtos.rol.RolDTO;
 import com.sd2022.club.dtos.rol.RolResultDTO;
+import com.sd2022.club.errors.BadRequestException;
+import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
+import com.sd2022.club.utils.Settings;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,7 +31,11 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     @Autowired
     private IPersonaRepository personaRepo;
 
-    private Logger log = Logger.getLogger(RolServiceImpl.class);
+    @Autowired
+    private CacheManager cacheManager;
+
+    private static final String CACHE_NAME = Settings.CACHE_NAME;
+
 
     @Autowired
     private Environment env;
@@ -37,16 +46,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
         return rol;
     }
 
-    @Override
-    public ResponseEntity findByRol(String rol) {
-        Rol ent = rolRepo.findByRol(rol);
 
-        if(ent == null || ent.isDeleted()) {
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
-        }
-        return new ResponseEntity<RolDTO>(toDTO(ent), HttpStatus.OK);
-    }
 
     @Override
     public RolDTO toDTO(Rol entity) {
@@ -58,76 +58,97 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     }
 
     @Override
-    public ResponseEntity<RolDTO> findById(int id) {
+    @Cacheable(value = "platform-cache", key = "'rol_api_' + #id")
+    public RolDTO findById(int id) throws NotFoundException {
         Rol ent = rolRepo.findById(id);
 
         if(ent == null || ent.isDeleted()) {
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity<RolDTO>(HttpStatus.NOT_FOUND);
+
+            throw new NotFoundException(env.getProperty("notfound"));
         }
-        return new ResponseEntity<RolDTO>(toDTO(ent), HttpStatus.OK);
+        return toDTO(ent);
     }
 
     @Override
-    public ResponseEntity<RolResultDTO> getAll(Pageable page) {
+    public RolResultDTO getAll(Pageable page) {
         RolResultDTO dtos = new RolResultDTO();
 
         List<RolDTO> result = rolRepo.findByDeleted(false, page)
-                .map(this::toDTO)
+                .map(r -> {
+                    RolDTO d = toDTO(r);
+                    cacheManager.getCache("platform-cache").putIfAbsent("rol_api_"+r.getId(), d);
+                    return d;
+                })
                 .getContent();
+
+
+
 
         dtos.setDtos(result);
 
-        return new ResponseEntity<RolResultDTO>( dtos, HttpStatus.OK);
+        return dtos;
     }
 
+    @Transactional
+    @CacheEvict(value = "platform-cache", key = "'rol_api_' +#id")
     @Override
-    public ResponseEntity remove(int id) {
+    public void remove(int id) throws NotFoundException {
+        Rol deleted = rolRepo.findById(id);
+        if (deleted == null)
+            throw new NotFoundException(env.getProperty("notfound"));
 
         Persona p = personaRepo.findByRol(id);
-       try{
+
            if(p != null) {
                p.setRol(null);
+               cacheManager.getCache("platform-cache").put("persona_api_"+p.getId(), p);
                personaRepo.save(p);
            }
 
            rolRepo.deleteById(id);
-           return new ResponseEntity(HttpStatus.OK);
-       } catch (Exception e){
-           log.error(e);
-           return new ResponseEntity( HttpStatus.INTERNAL_SERVER_ERROR);
        }
-    }
+
+
 
     @Override
-    public ResponseEntity<RolDTO> edit(int id, RolDTO dto) {
+    public RolDTO edit(int id, RolDTO dto) throws BadRequestException, NotFoundException {
         if(id != dto.getId()){
-            log.error(env.getProperty("primarykeyerror"));
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            throw new BadRequestException(env.getProperty("primarykeyerror"));
         }
 
-        Rol entity = new Rol();
+        Rol entity = rolRepo.findById(id);
         if(entity == null || entity.isDeleted()){
-            log.error(env.getProperty("notfound"));
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException(env.getProperty("notfound"));
+        }
+        if(!(entity.getRol().equals(dto.getRol()))){
+            if(rolRepo.existsByRol(dto.getRol())){
+                throw new BadRequestException(env.getProperty("existsrolerror"));
+            } else{
+                entity.setRol(dto.getRol());
+            }
+
+        } else{
+            entity.setRol(dto.getRol());
         }
 
-        entity.setRol(dto.getRol());
+        cacheManager.getCache("platform-cache").put("rol_api_"+entity.getId(), toDTO(entity));
+        rolRepo.save(entity);
 
-        return new ResponseEntity<RolDTO>(dto, HttpStatus.OK);
+        return toDTO(entity);
     }
 
+
     @Override
-    public ResponseEntity add(RolDTO dto) {
+    public RolDTO add(RolDTO dto) throws BadRequestException {
 
         boolean exist = rolRepo.existsByRol(dto.getRol());
 
         if(!exist){
-            rolRepo.save(toEntity((dto)));
-            return new ResponseEntity<RolDTO>(toDTO(rolRepo.findByRol(dto.getRol())), HttpStatus.OK);
+            Rol saved =rolRepo.save(toEntity((dto)));
+            cacheManager.getCache("platform-cache").put("rol_api_"+saved.getId(), toDTO(saved));
+            return toDTO(saved);
         }
-        log.error(env.getProperty(env.getProperty("existsrolerror")));
-        return new ResponseEntity(env.getProperty("existsrolerror"), HttpStatus.BAD_REQUEST);
+        throw new BadRequestException(env.getProperty("rolexistserror"));
 
     }
 }
