@@ -16,7 +16,7 @@ public class PersonaDTO extends BaseDTO implements Serializable {
     private String documentoTipo;
     private String documento;
     private String username;
-    private Date nacimiento;
+    private String nacimiento;
     private int cat;
     private int idRol;
 
@@ -84,11 +84,11 @@ public class PersonaDTO extends BaseDTO implements Serializable {
         this.username = username;
     }
 
-    public Date getNacimiento() {
+    public String getNacimiento() {
         return nacimiento;
     }
 
-    public void setNacimiento(Date nacimiento) {
+    public void setNacimiento(String nacimiento) {
         this.nacimiento = nacimiento;
     }
 

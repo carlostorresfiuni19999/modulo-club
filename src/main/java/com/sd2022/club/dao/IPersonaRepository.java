@@ -9,33 +9,27 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
 public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
-    public Persona save(PersonaDTO dto);
-    public Page<Persona> findByDeleted(boolean deleted, Pageable page);
-    public Page<Persona> findByNombreAndDeleted(String nombre, boolean deleted, Pageable page);
-    public Page<Persona> findByApellidoAndDeleted(String apellido, boolean deleted, Pageable page);
-    public Page<Persona> findByCatAndDeleted(int cat, boolean deleted, Pageable page);
-    public Persona findById(int id);
-    public List<Persona> findAll();
+    Persona save(PersonaDTO dto);
+    Page<Persona> findByDeleted(boolean deleted, Pageable page);
+    Page<Persona> findByCatAndDeleted(int cat, boolean deleted, Pageable page);
 
-    public Persona findByEmail(String email);
-
-    public Persona findByUsername(String username);
+    @Query(value = "select p from Persona p where p.id= :id" +
+            " and p.deleted = false ")
+    Persona findById(@Param("id") int id);
 
     @Query(value = "Select p from Persona p where " +
-            " p.rol.id = :rol ")
-    public Persona findByRol(@Param("rol") int rol);
+            " p.rol.id = :rol and p.deleted = false")
+    Persona findByRol(@Param("rol") int rol);
 
     @Query(value = "select (count(p) > 0) from Persona p " +
             " where p.deleted = false AND p.username = :username")
-    public boolean existsByUsername(@Param("username") String username);
+    boolean existsByUsername(@Param("username") String username);
 
     @Query(value = "select (count(p) > 0) from Persona p " +
             " where p.deleted = false AND p.username = :email")
-    public boolean existsByEmail(@Param("email") String email);
+    boolean existsByEmail(@Param("email") String email);
 
 
 

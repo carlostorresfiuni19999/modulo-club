@@ -6,8 +6,7 @@ import lombok.Setter;
 
 import java.util.List;
 
-@Getter
-@Setter
+
 public class ClubResultDTO extends BaseResultDTO<ClubDTO> {
     private static final long serialVersionUID = 1L;
 }

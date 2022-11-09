@@ -10,15 +10,15 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface IRolRepository extends JpaRepository<Rol, Integer> {
-    public Rol findById(int id);
-    public Rol findByRol(String rol);
-    public Rol save(Rol rol);
-    public Page<Rol> findByDeleted(boolean deleted, Pageable page);
+    Rol findById(int id);
+    Rol findByRol(String rol);
+    Rol save(Rol rol);
+    Page<Rol> findByDeleted(boolean deleted, Pageable page);
 
-    public void deleteById(int id);
+    void deleteById(int id);
 
     @Query("select count(rol) > 0 from Rol rol where rol.deleted = false AND rol.rol = :rol")
-    public boolean existsByRol(@Param("rol") String rol);
+    boolean existsByRol(@Param("rol") String rol);
 
 
 

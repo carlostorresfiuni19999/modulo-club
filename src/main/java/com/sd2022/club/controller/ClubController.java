@@ -82,6 +82,7 @@ public class ClubController {
             ClubDTO resp = service.findById(id);
             return new ResponseEntity<>(resp, HttpStatus.OK);
         } catch (NotFoundException e) {
+            log.error(e);
             return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }

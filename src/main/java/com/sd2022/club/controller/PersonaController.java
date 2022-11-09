@@ -30,13 +30,25 @@ public class PersonaController {
 
     private Logger log = Logger.getLogger(PersonaController.class);
 
+    @GetMapping("/{id}")
+    public ResponseEntity findById(@PathVariable(value = "id") int id){
+        try {
+            PersonaDTO result = service.findById(id);
+            return new ResponseEntity(result, HttpStatus.OK);
+        } catch (NotFoundException e) {
+            log.error(e);
+            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
+    }
+
+
     @GetMapping("/page/{page}")
     public ResponseEntity getAll(@PathVariable(value = "page") int page){
         BaseResultDTO result = service.getAll(PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @PostMapping
+    @PostMapping()
     public ResponseEntity add(@RequestBody PersonaDTO persona){
         PersonaDTO result;
         try{
@@ -45,9 +57,6 @@ public class PersonaController {
         } catch (BadRequestException e){
             log.error(e);
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
-        } catch (Exception e){
-            log.error(e);
-            return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
     }

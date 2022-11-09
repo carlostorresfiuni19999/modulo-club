@@ -29,11 +29,12 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
     @Autowired
     private CacheManager cacheManager;
 
-    @Cacheable(value = "platform-cache", key = "'club_ap_' +#id")
-    @Override
     public ClubDTO findById(int id) throws NotFoundException {
             Club club = clubRepo.findById(id);
-            if(club.isDeleted()) throw new NotFoundException(env.getProperty("notfound"));
+            if(club == null || club.isDeleted())
+                throw new NotFoundException(env.getProperty("notfound"));
+
+            cacheManager.getCache("platform-cache").put("club_api_"+id, toDTO(club));
             return toDTO(club);
     }
 
@@ -69,13 +70,13 @@ public class ClubServiceImpl extends BaseServiceImpl<ClubDTO, Club, BaseResultDT
 
 
     @Override
-    @CacheEvict(value = "platform-cache", key = "'club_api_' +#id")
     public void remove(int id) throws NotFoundException{
            Club club = clubRepo.findById(id);
 
            if(club == null || club.isDeleted()) {
                throw new NotFoundException(env.getProperty("notfound"));
            }
+           cacheManager.getCache("platform-cache").evict("club_api_"+id);
            club.setDeleted(true);
            clubRepo.save(club);
     }

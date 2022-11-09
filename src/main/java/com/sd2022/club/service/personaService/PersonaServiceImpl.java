@@ -22,6 +22,9 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -81,12 +84,12 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
             throw new NotFoundException(env.getProperty("notfound"));
         }
         try {
+            del.setRol(null);
             del.setDeleted(true);
             personaRepo.save(del);
         } catch (Exception e){
             log.error(e);
         }
-
 
 
     }
@@ -100,10 +103,10 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
             Persona p = personaRepo.findById(dto.getId());
 
             Rol rol = rolRepo.findById(dto.getIdRol());
-            if(personaRepo.existsByEmail(dto.getEmail())){
+            if(personaRepo.existsByEmail(dto.getEmail()) && !(p.getEmail().equals(dto.getEmail()))){
                 throw new BadRequestException(env.getProperty("existemailerror"));
             }
-            if(personaRepo.existsByUsername(dto.getUsername())){
+            if(personaRepo.existsByUsername(dto.getUsername()) && !(p.getUsername().equals(dto.getUsername()))){
                 throw new BadRequestException(env.getProperty("existusernameerror"));
             }
             if(rol == null || rol.equals(env.getProperty("roldefault"))){
@@ -113,7 +116,12 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
             if(p == null || p.isDeleted()){
                 throw new NotFoundException(env.getProperty("notfound"));
             } else{
-                Persona upd = toEntity(dto);
+                Persona upd = null;
+                try {
+                    upd = toEntity(dto);
+                } catch (ParseException e) {
+                    throw new BadRequestException(env.getProperty("fechaserror")+" "+env.getProperty("formatofecha"));
+                }
                 upd.setId(dto.getId());
                 cacheManager.getCache("platform-cache").put("persona_api_"+dto.getId(), dto);
                 personaRepo.save(upd);
@@ -131,7 +139,12 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         System.out.println(rol.getRol()+" "+env.getProperty("roldefault"));
 
 
-        Persona toSave = toEntity(dto);
+        Persona toSave = null;
+        try {
+            toSave = toEntity(dto);
+        } catch (ParseException e) {
+            throw new BadRequestException(env.getProperty("fechaserror")+" "+env.getProperty("formatofecha"));
+        }
 
         if(personaRepo.existsByEmail(dto.getEmail())){
             throw new BadRequestException(env.getProperty("existemailerror"));
@@ -141,19 +154,14 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
             throw new BadRequestException(env.getProperty("existusernameerror"));
         }
 
-        if(toSave.getClub() == null || toSave.getClub().isDeleted()){
-            toSave = personaRepo.save(toSave);
-            cacheManager.getCache("platform-cache").put("persona_api_"+toSave.getId(), toDTO(toSave));
-            return  toDTO(toSave);
-        } else{
-            if(rol == null || rol.getRol().equals(env.getProperty("roldefault"))){
-                log.error(env.getProperty("rolerror"));
-
-                throw new BadRequestException(env.getProperty("rolerror"));
-            }
-
-            return toDTO(toSave);
+        if((toSave.getRol() == null || toSave.getRol().equals(env.getProperty("roldefault")))
+        && (toSave.getClub() != null)){
+            throw new BadRequestException(env.getProperty("rolerror"));
         }
+
+        toSave = personaRepo.save(toSave);
+        cacheManager.getCache("platform-cache").put("persona_api_"+toSave.getId(), toDTO(toSave));
+        return  toDTO(toSave);
 
     }
 
@@ -183,9 +191,10 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
 
     @Override
-    public Persona toEntity(PersonaDTO dto) {
+    public Persona toEntity(PersonaDTO dto) throws ParseException {
         Persona ent = new Persona();
 
+        SimpleDateFormat format = new SimpleDateFormat(env.getProperty("formatofecha"));
         ent.setNombre(dto.getNombre());
         ent.setApellido(dto.getApellido());
         ent.setCat(dto.getCat());
@@ -195,7 +204,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         ent.setDocumento(dto.getDocumento());
         ent.setDocumentoTipo(dto.getDocumentoTipo());
         ent.setUsername(dto.getUsername());
-        ent.setNacimiento(dto.getNacimiento());
+        ent.setNacimiento(format.parse(dto.getNacimiento()));
 
         Rol rol = rolRepo.findById(dto.getIdRol());
         ent.setRol(rol);
@@ -214,7 +223,9 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         dto.setCat(entity.getCat());
         dto.setEmail(entity.getEmail());
         dto.setUsername(entity.getUsername());
-        dto.setNacimiento(entity.getNacimiento());
+        Date nacimientoDate = entity.getNacimiento();
+        String nacimiento = new SimpleDateFormat(env.getProperty("formatofecha")).format(nacimientoDate);
+        dto.setNacimiento(nacimiento);
         if(entity.getClub() == null || entity.getClub().isDeleted()){
             dto.setIdClub(-1);
         }else{
