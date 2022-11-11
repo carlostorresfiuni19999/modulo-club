@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
     Persona save(PersonaDTO dto);
@@ -21,7 +23,7 @@ public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
 
     @Query(value = "Select p from Persona p where " +
             " p.rol.id = :rol and p.deleted = false")
-    Persona findByRol(@Param("rol") int rol);
+    List<Persona> findByRol(@Param("rol") int rol);
 
     @Query(value = "select (count(p) > 0) from Persona p " +
             " where p.deleted = false AND p.username = :username")

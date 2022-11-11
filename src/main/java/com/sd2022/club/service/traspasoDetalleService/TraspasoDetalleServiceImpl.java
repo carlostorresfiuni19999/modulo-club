@@ -69,6 +69,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
             throw new BadRequestException(env.getProperty("clubdestinoerror"));
         }
 
+        ent.setId(dto.getId());
         ent.setClubDestino(destino);
         ent.setCosto(dto.getCosto());
         ent.setJugador(traspasable);
@@ -89,32 +90,14 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         return dto;
     }
 
-    @Cacheable(value = "platform-cache", key = "'traspaso_detalle_api_' +#id")
-    @Override
-    public TraspasoDetalleDTO findById(int id) throws NotFoundException {
-        TraspasoDetalle ent = traspasoDetalleRepo.findById(id);
 
-        if(ent != null){
-            TraspasoDetalleDTO dto = toDTO(ent);
-            return dto;
-        }
-        throw new NotFoundException(env.getProperty("notfound"));
+    public TraspasoDetalleDTO findById(int id) throws NotFoundException {
+       return null;
     }
 
     @Override
     public BaseResultDTO<TraspasoDetalleDTO> getAll(Pageable page) {
-        List<TraspasoDetalleDTO> dtos = traspasoDetalleRepo.findAll(page)
-                .map(r -> {
-                    TraspasoDetalleDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_detalle_api_"+d.getId(), d);
-                    return d;
-                })
-                .getContent();
-
-        TraspasoDetalleResultDTO result = new TraspasoDetalleResultDTO();
-
-        result.setDtos(dtos);
-        return result;
+        return null;
     }
 
     @Override

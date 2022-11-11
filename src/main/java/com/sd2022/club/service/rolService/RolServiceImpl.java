@@ -97,15 +97,18 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
         if (deleted == null)
             throw new NotFoundException(env.getProperty("notfound"));
 
-        Persona p = personaRepo.findByRol(id);
+        List<Persona> personas = personaRepo.findByRol(id);
 
-           if(p != null) {
-               p.setRol(null);
-               cacheManager.getCache("platform-cache").put("persona_api_"+p.getId(), p);
-               personaRepo.save(p);
-           }
+        personas.forEach(p -> {
+            p.setRol(null);
+            cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+            personaRepo.save(p);
+        });
 
-           rolRepo.deleteById(id);
+        rolRepo.deleteById(id);
+
+
+
        }
 
 

@@ -30,6 +30,7 @@ public class TraspasoController {
 
 
 
+    @CrossOrigin(origins = "*")
     @GetMapping("/page/{page}")
     public ResponseEntity getAll(@PathVariable(value = "page") int page){
         BaseResultDTO result =
@@ -40,8 +41,17 @@ public class TraspasoController {
 
     @PostMapping
     public ResponseEntity add(@RequestBody TraspasoCreateDTO traspaso){
-        TraspasoDTO result = service.add(traspaso);
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        TraspasoDTO result = null;
+        try {
+            result = service.save(traspaso);
+            return new ResponseEntity(result, HttpStatus.OK);
+        } catch (NotFoundException e) {
+            log.error(e);
+            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (BadRequestException e) {
+            log.error(e);
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
 
@@ -66,7 +76,7 @@ public class TraspasoController {
             log.error(e);
             return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        return new ResponseEntity(result, HttpStatus.OK);
     }
 
     @GetMapping("/fechas/{inicio}/{fin}/{page}")
@@ -87,13 +97,18 @@ public class TraspasoController {
     @PutMapping("/{id}")
     public ResponseEntity edit(@PathVariable(value = "id") int id, @RequestBody TraspasoCreateDTO dto){
         try {
-            TraspasoDTO result = service.save(dto);
+            TraspasoDTO result = service.toEdit(id, dto);
             return new ResponseEntity(result, HttpStatus.OK);
         } catch (NotFoundException e) {
             log.error(e);
             return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (BadRequestException e) {
             log.error(e);
+            e.printStackTrace();
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e){
+            log.error(e);
+            e.printStackTrace();
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }

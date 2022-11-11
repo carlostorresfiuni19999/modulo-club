@@ -23,18 +23,16 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 
 @Service
 public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, BaseResultDTO<TraspasoDTO>> implements ITraspasoService{
 
-    private Logger log = Logger.getLogger(TraspasoServiceImpl.class);
+    private final Logger log = Logger.getLogger(TraspasoServiceImpl.class);
     @Autowired
     private ITraspasoRepository traspasoRepo;
 
@@ -46,9 +44,6 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
     @Autowired
     private ITraspasoDetalleRepository detalleRepo;
-
-    @Autowired
-    private TraspasoDetalleServiceImpl detalleService;
 
     @Autowired
     private CacheManager cacheManager;
@@ -66,7 +61,9 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     public TraspasoDTO toDTO(Traspaso entity) {
         TraspasoDTO dto = new TraspasoDTO();
         dto.setId(entity.getId());
-        dto.setFechaTraspaso(entity.getFechaTraspaso());
+        SimpleDateFormat format = new SimpleDateFormat(env.getProperty("formatofecha"));
+        format.setTimeZone(TimeZone.getTimeZone("America/Asuncion"));
+        dto.setFechaTraspaso(format.format(entity.getFechaTraspaso()));
         return dto;
     }
 
@@ -77,7 +74,6 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
         if(traspaso == null) {
            throw new NotFoundException(env.getProperty("notfound"));
-
         }
         return toDTO(traspaso);
     }
@@ -165,32 +161,63 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     }
 
     @Override
-    @Transactional
     public TraspasoDTO save(TraspasoCreateDTO traspaso) throws NotFoundException, BadRequestException {
 
+        Persona p;
+        Club c;
         Traspaso cabecera = toEntity(traspaso);
-        if(traspaso.getId() != 0){
-            cabecera.setId(traspaso.getId());
-            cacheManager.getCache("platform-cache").put("traspaso_api_"+ traspaso.getId(), cabecera);
-            cabecera = traspasoRepo.save(cabecera);
-
-            final List<TraspasoDetalle> detallesExistentes = detalleRepo.findByIdTraspaso(cabecera.getId());
-            detallesExistentes.forEach(td -> {
-                cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+td.getId());
-                detalleRepo.deleteById(td.getId());
-            });
-
-
+        cabecera = traspasoRepo.save(cabecera);
+        cacheManager.getCache("platform-cache").put("traspaso_api_"+cabecera.getId(), toDTO(cabecera));
             for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
+
+                detalle.setIdTraspaso(cabecera.getId());
                 TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
-                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), nuevoDetalle);
+
+                p = nuevoDetalle.getJugador();
+                c = nuevoDetalle.getClubDestino();
+                p.setClub(c);
+                cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+                personaRepo.save(p);
+
+                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), service.toDTO(nuevoDetalle));
             }
-        } else{
-            cabecera = traspasoRepo.save(cabecera);
-            for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
-                detalleRepo.save(service.toEntity(detalle));
-                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), detalle);
-            }
+
+
+        return toDTO(cabecera);
+    }
+
+    public TraspasoDTO toEdit(int id, TraspasoCreateDTO traspaso) throws BadRequestException, NotFoundException {
+        if(id != traspaso.getId()){
+            throw new BadRequestException(env.getProperty("primarykeyerror"));
+        }
+
+
+        Traspaso cabecera = traspasoRepo.findById(id);
+        cabecera.setFechaTraspaso(new Date());
+
+        if(cabecera == null )
+            throw new NotFoundException(env.getProperty("notfound"));
+        cacheManager.getCache("platform-cache").evictIfPresent("traspaso_api_"+cabecera.getId());
+        cabecera = traspasoRepo.save(cabecera);
+
+        final List<TraspasoDetalle> detallesExistentes = detalleRepo.findByIdTraspaso(cabecera.getId());
+
+        detallesExistentes.forEach(td -> {
+            cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+td.getId());
+            detalleRepo.deleteById(td.getId());
+        });
+
+
+        for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
+            detalle.setIdTraspaso(cabecera.getId());
+            cacheManager.getCache("platform-cache").evict("traspaso_detalle_api_"+detalle.getId());
+            TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
+            Persona p = nuevoDetalle.getJugador();
+            Club c = nuevoDetalle.getClubDestino();
+            p.setClub(c);
+            cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+            personaRepo.save(p);
+
         }
 
         return toDTO(cabecera);

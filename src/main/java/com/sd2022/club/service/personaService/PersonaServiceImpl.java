@@ -135,9 +135,6 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
     @Override
     public PersonaDTO add(PersonaDTO dto) throws BadRequestException{
-        Rol rol = rolRepo.findById(dto.getIdRol());
-        System.out.println(rol.getRol()+" "+env.getProperty("roldefault"));
-
 
         Persona toSave = null;
         try {

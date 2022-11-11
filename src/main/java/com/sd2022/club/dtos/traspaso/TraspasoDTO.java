@@ -7,7 +7,7 @@ import java.util.Date;
 
 public class TraspasoDTO extends BaseDTO implements Serializable {
     private int id;
-    private Date fechaTraspaso;
+    private String fechaTraspaso;
     private static final long serialVersionUID = 1L;
 
     public int getId() {
@@ -18,11 +18,11 @@ public class TraspasoDTO extends BaseDTO implements Serializable {
         this.id = id;
     }
 
-    public Date getFechaTraspaso() {
+    public String getFechaTraspaso() {
         return fechaTraspaso;
     }
 
-    public void setFechaTraspaso(Date fechaTraspaso) {
+    public void setFechaTraspaso(String fechaTraspaso) {
         this.fechaTraspaso = fechaTraspaso;
     }
 }
