@@ -10,4 +10,6 @@ public interface IPersonaService extends IBaseService<PersonaDTO, BaseResultDTO<
 
     public BaseResultDTO<PersonaDTO> findByCat(int cat, Pageable page);
 
+    public BaseResultDTO<PersonaDTO> getAll();
+
 }

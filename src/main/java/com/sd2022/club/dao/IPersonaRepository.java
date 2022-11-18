@@ -33,6 +33,8 @@ public interface IPersonaRepository extends JpaRepository<Persona, Integer> {
             " where p.deleted = false AND p.username = :email")
     boolean existsByEmail(@Param("email") String email);
 
+    List<Persona> findByDeleted(boolean deleted);
+
 
 
 }

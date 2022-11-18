@@ -13,7 +13,6 @@ import com.sd2022.entities.models.Rol;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +33,8 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     @Autowired
     private CacheManager cacheManager;
 
-    private static final String CACHE_NAME = Settings.CACHE_NAME;
+    @Autowired
+    private  Settings settings;
 
 
     @Autowired
@@ -58,7 +58,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     }
 
     @Override
-    @Cacheable(value = "platform-cache", key = "'rol_api_' + #id")
+    @Cacheable(value = Settings.CACHE_NAME, key = "'rol_api_' + #id")
     public RolDTO findById(int id) throws NotFoundException {
         Rol ent = rolRepo.findById(id);
 
@@ -73,10 +73,12 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     public RolResultDTO getAll(Pageable page) {
         RolResultDTO dtos = new RolResultDTO();
 
+        System.out.println(settings.getCacheName());
+
         List<RolDTO> result = rolRepo.findByDeleted(false, page)
                 .map(r -> {
                     RolDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("rol_api_"+r.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("rol_api_"+r.getId(), d);
                     return d;
                 })
                 .getContent();
@@ -90,7 +92,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
     }
 
     @Transactional
-    @CacheEvict(value = "platform-cache", key = "'rol_api_' +#id")
+    @CacheEvict(value = Settings.CACHE_NAME, key = "'rol_api_' +#id")
     @Override
     public void remove(int id) throws NotFoundException {
         Rol deleted = rolRepo.findById(id);
@@ -101,7 +103,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
 
         personas.forEach(p -> {
             p.setRol(null);
-            cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+            cacheManager.getCache(settings.getCacheName()).evict("persona_api_"+p.getId());
             personaRepo.save(p);
         });
 
@@ -134,7 +136,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
             entity.setRol(dto.getRol());
         }
 
-        cacheManager.getCache("platform-cache").put("rol_api_"+entity.getId(), toDTO(entity));
+        cacheManager.getCache(settings.getCacheName()).put("rol_api_"+entity.getId(), toDTO(entity));
         rolRepo.save(entity);
 
         return toDTO(entity);
@@ -148,7 +150,7 @@ public class RolServiceImpl extends BaseServiceImpl<RolDTO, Rol, RolResultDTO> i
 
         if(!exist){
             Rol saved =rolRepo.save(toEntity((dto)));
-            cacheManager.getCache("platform-cache").put("rol_api_"+saved.getId(), toDTO(saved));
+            cacheManager.getCache(settings.getCacheName()).put("rol_api_"+saved.getId(), toDTO(saved));
             return toDTO(saved);
         }
         throw new BadRequestException(env.getProperty("rolexistserror"));

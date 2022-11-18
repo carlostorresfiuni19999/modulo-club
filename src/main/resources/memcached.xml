@@ -11,7 +11,7 @@
 
     <cache:annotation-driven />
     <context:component-scan base-package="com.sd2022.club" />
-    <context:property-placeholder location="memchached.properties" />
+    <context:property-placeholder location="memcached.properties" />
     <bean name="cacheManager" class="com.google.code.ssm.spring.SSMCacheManager">
         <property name="caches">
             <set>

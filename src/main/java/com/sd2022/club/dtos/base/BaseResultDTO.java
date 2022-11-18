@@ -12,6 +12,16 @@ public abstract class BaseResultDTO <D extends BaseDTO> implements Serializable 
 
     private List<D> dtos;
 
+    private int pages;
+
+    public int getPages() {
+        return pages;
+    }
+
+    public void setPages(int pages) {
+        this.pages = pages;
+    }
+
     public List<D> getDtos() {
         return dtos;
     }

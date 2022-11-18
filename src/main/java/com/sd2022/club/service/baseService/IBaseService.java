@@ -14,4 +14,5 @@ public interface IBaseService <D extends BaseDTO, P extends BaseResultDTO<D>> {
     public D edit(int id, D dto) throws Exception;
     public D add(D dto) throws Exception;
 
+
 }

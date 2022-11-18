@@ -74,6 +74,7 @@ public class RolController {
 
     }
 
+    @CrossOrigin(origins = "*")
     @GetMapping("page/{page}")
     public ResponseEntity<RolResultDTO> list(@PathVariable(value = "page") int page){
         RolResultDTO result = service.getAll(PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));

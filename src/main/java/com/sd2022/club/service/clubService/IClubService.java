@@ -7,4 +7,5 @@ import com.sd2022.club.service.baseService.IBaseService;
 
 
 public interface IClubService extends IBaseService<ClubDTO, BaseResultDTO<ClubDTO>> {
+    BaseResultDTO<ClubDTO> getAll();
 }

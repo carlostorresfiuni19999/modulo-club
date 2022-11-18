@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 
 @Repository
 public interface IClubRepository extends JpaRepository<Club, Integer> {
@@ -18,5 +20,10 @@ public interface IClubRepository extends JpaRepository<Club, Integer> {
     Club findById(@Param("id") int id);
     @Query(value = "select c from Club c where c.cancha = :cancha AND c.deleted = false")
     Club findByCancha(@Param("cancha") String cancha);
+
+    @Query(value = "select count(c) from Club c where c.deleted = false")
+    int getCantPage();
+
+    List<Club> findByDeleted(boolean deleted);
 
 }

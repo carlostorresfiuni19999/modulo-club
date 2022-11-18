@@ -2,6 +2,7 @@ package com.sd2022.club.controller;
 
 
 import com.sd2022.club.dtos.base.BaseResultDTO;
+import com.sd2022.club.dtos.club.ClubDTO;
 import com.sd2022.club.dtos.persona.PersonaDTO;
 import com.sd2022.club.errors.BadRequestException;
 import com.sd2022.club.errors.NotFoundException;
@@ -30,6 +31,7 @@ public class PersonaController {
 
     private Logger log = Logger.getLogger(PersonaController.class);
 
+    @CrossOrigin(origins = "*")
     @GetMapping("/{id}")
     public ResponseEntity findById(@PathVariable(value = "id") int id){
         try {
@@ -41,13 +43,19 @@ public class PersonaController {
         }
     }
 
-
+    @CrossOrigin(origins = "*")
+    @GetMapping()
+    public ResponseEntity<BaseResultDTO<PersonaDTO>> getAll(){
+        return new ResponseEntity<>(service.getAll(), HttpStatus.OK);
+    }
+    @CrossOrigin(origins = "*")
     @GetMapping("/page/{page}")
     public ResponseEntity getAll(@PathVariable(value = "page") int page){
         BaseResultDTO result = service.getAll(PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
+    @CrossOrigin(origins = "*")
     @PostMapping()
     public ResponseEntity add(@RequestBody PersonaDTO persona){
         PersonaDTO result;
@@ -60,7 +68,7 @@ public class PersonaController {
         }
 
     }
-
+    @CrossOrigin(origins = "*")
     @PutMapping("/{id}")
     public ResponseEntity edit(@PathVariable(value= "id") int id, @RequestBody PersonaDTO persona){
         PersonaDTO result;
@@ -79,7 +87,7 @@ public class PersonaController {
         }
 
     }
-
+    @CrossOrigin(origins = "*")
     @DeleteMapping("/{id}")
     public ResponseEntity delete(@PathVariable(value = "id") int id){
             try{

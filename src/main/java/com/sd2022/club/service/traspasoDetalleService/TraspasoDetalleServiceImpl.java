@@ -10,11 +10,11 @@ import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleResultDTO;
 import com.sd2022.club.errors.BadRequestException;
 import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
+import com.sd2022.club.utils.Settings;
 import com.sd2022.entities.models.*;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,6 +40,11 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
 
     @Autowired
     private CacheManager cacheManager;
+
+
+    @Autowired
+    private Settings settings;
+
     @Override
     public TraspasoDetalle toEntity(TraspasoDetalleDTO dto) throws NotFoundException, BadRequestException {
         TraspasoDetalle ent = new TraspasoDetalle();
@@ -119,7 +124,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         List<TraspasoDetalleDTO> dtos = traspasoDetalleRepo.findByIdTraspaso(idTraspaso, page)
                 .map(r -> {
                     TraspasoDetalleDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_detalle_api_"+d.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("traspaso_detalle_api_"+d.getId(), d);
                     return d;
                 })
                 .getContent();

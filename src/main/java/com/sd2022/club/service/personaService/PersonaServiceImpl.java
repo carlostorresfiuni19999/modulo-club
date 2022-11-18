@@ -9,6 +9,7 @@ import com.sd2022.club.dtos.persona.PersonaResultDTO;
 import com.sd2022.club.errors.BadRequestException;
 import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
+import com.sd2022.club.utils.Settings;
 import com.sd2022.entities.models.Club;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Rol;
@@ -16,7 +17,6 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +26,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, BaseResultDTO<PersonaDTO>> implements IPersonaService{
@@ -45,9 +46,13 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
     @Autowired
     private CacheManager cacheManager;
 
+    @Autowired
+    private Settings settings;
+
+
     private Logger log = Logger.getLogger(PersonaServiceImpl.class);
 
-    @Cacheable(value = "platform-cache",key = "'persona_api_' +#id")
+    @Cacheable(value = Settings.CACHE_NAME,key = "'persona_api_' +#id")
     @Override
     public PersonaDTO findById(int id) throws NotFoundException {
         Persona p = personaRepo.findById(id);
@@ -62,12 +67,14 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         List<PersonaDTO> dtos = personaRepo.findByDeleted(false, page)
                 .map(r -> {
                     PersonaDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("persona_api_"+d.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("persona_api_"+d.getId(), d);
                     return d;
                 })
                 .getContent();
 
         BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
+
+        result.setPages(personaRepo.findByDeleted(false, page).getTotalPages());
 
         result.setDtos(dtos);
 
@@ -75,7 +82,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
     }
 
-    @CacheEvict(value = "platform-cache", key = "'persona_api_' +#id")
+    @CacheEvict(value = Settings.CACHE_NAME, key = "'persona_api_' +#id")
     @Override
     public void remove(int id) throws  NotFoundException{
 
@@ -123,7 +130,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
                     throw new BadRequestException(env.getProperty("fechaserror")+" "+env.getProperty("formatofecha"));
                 }
                 upd.setId(dto.getId());
-                cacheManager.getCache("platform-cache").put("persona_api_"+dto.getId(), dto);
+                cacheManager.getCache(settings.getCacheName()).put("persona_api_"+dto.getId(), dto);
                 personaRepo.save(upd);
 
                 upd = personaRepo.findById(dto.getId());
@@ -157,7 +164,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         }
 
         toSave = personaRepo.save(toSave);
-        cacheManager.getCache("platform-cache").put("persona_api_"+toSave.getId(), toDTO(toSave));
+        cacheManager.getCache(settings.getCacheName()).put("persona_api_"+toSave.getId(), toDTO(toSave));
         return  toDTO(toSave);
 
     }
@@ -170,7 +177,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         List<PersonaDTO> dtos = personaRepo.findByCatAndDeleted(cat, false, page)
                 .map(r -> {
                     PersonaDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("persona_api_"+d.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("persona_api_"+d.getId(), d);
                     return d;
                 })
                 .getContent();
@@ -183,8 +190,17 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
 
     }
 
+    @Override
+    public BaseResultDTO<PersonaDTO> getAll() {
+         BaseResultDTO<PersonaDTO> result = new PersonaResultDTO();
+         result.setDtos(personaRepo.findByDeleted(false).stream().map(this::toDTO).collect(Collectors.toList()));
+         result.setPages(0);
 
-
+         result.getDtos().forEach(d -> {
+             cacheManager.getCache(settings.getCacheName()).putIfAbsent("persona_api_"+d.getId(), d);
+         });
+         return result;
+    }
 
 
     @Override

@@ -29,13 +29,20 @@ public class ClubController {
 
     private Logger log = Logger.getLogger(ClubController.class);
 
+    @CrossOrigin(origins = "*")
     @GetMapping("/page/{pageNum}")
     public ResponseEntity<BaseResultDTO<ClubDTO>> getAll(@PathVariable(value="pageNum") int pageNum){
         BaseResultDTO result = service.getAll(PageRequest.of(pageNum, Integer.parseInt(env.getProperty("pagesize"))));
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
+    @CrossOrigin(origins = "*")
+    @GetMapping()
+    public ResponseEntity<BaseResultDTO<ClubDTO>> getAll(){
+        return new ResponseEntity<>(service.getAll(), HttpStatus.OK);
+    }
 
+    @CrossOrigin(origins = "*")
     @PostMapping()
     public ResponseEntity<ClubDTO> add(@RequestBody ClubDTO club){
 
@@ -49,6 +56,7 @@ public class ClubController {
 
     }
 
+    @CrossOrigin(origins = "*")
     @PutMapping("/{id}")
     public ResponseEntity edit(@PathVariable int id, @RequestBody ClubDTO club){
         try{
@@ -63,6 +71,7 @@ public class ClubController {
         }
     }
 
+    @CrossOrigin(origins = "*")
     @DeleteMapping("/{id}")
     public ResponseEntity delete(@PathVariable int id){
         try{
@@ -76,6 +85,7 @@ public class ClubController {
 
 
 
+    @CrossOrigin(origins = "*")
     @GetMapping("/{id}")
     public ResponseEntity<ClubDTO> findById(@PathVariable(value = "id") int id){
         try {

@@ -12,6 +12,7 @@ import com.sd2022.club.errors.BadRequestException;
 import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.baseService.BaseServiceImpl;
 import com.sd2022.club.service.traspasoDetalleService.TraspasoDetalleServiceImpl;
+import com.sd2022.club.utils.Settings;
 import com.sd2022.entities.models.Club;
 import com.sd2022.entities.models.Persona;
 import com.sd2022.entities.models.Traspaso;
@@ -50,6 +51,10 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
     @Autowired
     private Environment env;
+
+    @Autowired
+    private Settings settings;
+
     @Override
     public Traspaso toEntity(TraspasoDTO dto) {
         Traspaso cabecera = new Traspaso();
@@ -67,7 +72,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         return dto;
     }
 
-    @Cacheable(value = "platform-cache", key = "'traspaso_api_' +#id")
+    @Cacheable(value = Settings.CACHE_NAME, key = "'traspaso_api_' +#id")
     @Override
     public TraspasoDTO findById(int id) throws NotFoundException {
         Traspaso traspaso = traspasoRepo.findById(id);
@@ -83,7 +88,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         List<TraspasoDTO> dtos = traspasoRepo.findAll(page)
                 .map(r -> {
                     TraspasoDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_api_"+d.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("traspaso_api_"+d.getId(), d);
                     return d;
                 })
                 .getContent();
@@ -109,15 +114,15 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
                 Persona p = detalle.getJugador();
                 Club origen = detalle.getClubOrigen();
                 p.setClub(origen);
-                cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+detalle.getId());
-                cacheManager.getCache("platform-cache").evictIfPresent("persona_api_"+p.getId());
+                cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_detalle_api_"+detalle.getId());
+                cacheManager.getCache(settings.getCacheName()).evictIfPresent("persona_api_"+p.getId());
                 personaRepo.save(p);
                 detalleRepo.deleteById(detalle.getId());
             } catch (Exception e){
                 log.error(e);
             }
         }
-        cacheManager.getCache("platform-cache").evictIfPresent("traspaso_api_"+id);
+        cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_api_"+id);
         traspasoRepo.deleteById(id);
 
 
@@ -150,7 +155,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         List<TraspasoDTO> dtos = traspasoRepo.filtrarEntreFechas(fechaInicio, fechaFin, page)
                 .map(r -> {
                     TraspasoDTO d = toDTO(r);
-                    cacheManager.getCache("platform-cache").putIfAbsent("traspaso_api_"+d.getId(), d);
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("traspaso_api_"+d.getId(), d);
                     return d;
                 })
                 .getContent();
@@ -167,7 +172,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         Club c;
         Traspaso cabecera = toEntity(traspaso);
         cabecera = traspasoRepo.save(cabecera);
-        cacheManager.getCache("platform-cache").put("traspaso_api_"+cabecera.getId(), toDTO(cabecera));
+        cacheManager.getCache(settings.getCacheName()).put("traspaso_api_"+cabecera.getId(), toDTO(cabecera));
             for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
 
                 detalle.setIdTraspaso(cabecera.getId());
@@ -176,10 +181,10 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
                 p = nuevoDetalle.getJugador();
                 c = nuevoDetalle.getClubDestino();
                 p.setClub(c);
-                cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+                cacheManager.getCache(settings.getCacheName()).evict("persona_api_"+p.getId());
                 personaRepo.save(p);
 
-                cacheManager.getCache("platform-cache").put("traspaso_detalle_api_"+detalle.getId(), service.toDTO(nuevoDetalle));
+                cacheManager.getCache(settings.getCacheName()).put("traspaso_detalle_api_"+detalle.getId(), service.toDTO(nuevoDetalle));
             }
 
 
@@ -197,25 +202,25 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
         if(cabecera == null )
             throw new NotFoundException(env.getProperty("notfound"));
-        cacheManager.getCache("platform-cache").evictIfPresent("traspaso_api_"+cabecera.getId());
+        cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_api_"+cabecera.getId());
         cabecera = traspasoRepo.save(cabecera);
 
         final List<TraspasoDetalle> detallesExistentes = detalleRepo.findByIdTraspaso(cabecera.getId());
 
         detallesExistentes.forEach(td -> {
-            cacheManager.getCache("platform-cache").evictIfPresent("traspaso_detalle_api_"+td.getId());
+            cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_detalle_api_"+td.getId());
             detalleRepo.deleteById(td.getId());
         });
 
 
         for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
             detalle.setIdTraspaso(cabecera.getId());
-            cacheManager.getCache("platform-cache").evict("traspaso_detalle_api_"+detalle.getId());
+            cacheManager.getCache(settings.getCacheName()).evict("traspaso_detalle_api_"+detalle.getId());
             TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
             Persona p = nuevoDetalle.getJugador();
             Club c = nuevoDetalle.getClubDestino();
             p.setClub(c);
-            cacheManager.getCache("platform-cache").evict("persona_api_"+p.getId());
+            cacheManager.getCache(settings.getCacheName()).evict("persona_api_"+p.getId());
             personaRepo.save(p);
 
         }
