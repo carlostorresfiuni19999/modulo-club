@@ -25,9 +25,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 
 
 @Service
@@ -107,7 +105,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
 
 
-        List<TraspasoDetalle> detalles = detalleRepo.findByIdTraspaso(id);
+        List<TraspasoDetalle> detalles = cabecera.getTraspasoDetalles();
 
         for(TraspasoDetalle detalle : detalles){
             try{
@@ -171,23 +169,23 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         Persona p;
         Club c;
         Traspaso cabecera = toEntity(traspaso);
-        cabecera = traspasoRepo.save(cabecera);
-        cacheManager.getCache(settings.getCacheName()).put("traspaso_api_"+cabecera.getId(), toDTO(cabecera));
+
             for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
 
                 detalle.setIdTraspaso(cabecera.getId());
-                TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
-
+                TraspasoDetalle nuevoDetalle = service.toEntity(detalle);
                 p = nuevoDetalle.getJugador();
                 c = nuevoDetalle.getClubDestino();
                 p.setClub(c);
                 cacheManager.getCache(settings.getCacheName()).evict("persona_api_"+p.getId());
                 personaRepo.save(p);
-
-                cacheManager.getCache(settings.getCacheName()).put("traspaso_detalle_api_"+detalle.getId(), service.toDTO(nuevoDetalle));
+                cabecera.addDetalle(nuevoDetalle);
             }
 
 
+        cabecera = traspasoRepo.save(cabecera);
+
+        cacheManager.getCache(settings.getCacheName()).put("traspaso_api_"+cabecera.getId(), toDTO(cabecera));
         return toDTO(cabecera);
     }
 
@@ -200,30 +198,29 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         Traspaso cabecera = traspasoRepo.findById(id);
         cabecera.setFechaTraspaso(new Date());
 
+
+
+
         if(cabecera == null )
             throw new NotFoundException(env.getProperty("notfound"));
-        cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_api_"+cabecera.getId());
-        cabecera = traspasoRepo.save(cabecera);
 
-        final List<TraspasoDetalle> detallesExistentes = detalleRepo.findByIdTraspaso(cabecera.getId());
-
-        detallesExistentes.forEach(td -> {
-            cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_detalle_api_"+td.getId());
-            detalleRepo.deleteById(td.getId());
-        });
-
+        List<TraspasoDetalle> nuevoDetalles = new ArrayList<>();
 
         for (TraspasoDetalleDTO detalle : traspaso.getDetalles()) {
             detalle.setIdTraspaso(cabecera.getId());
-            cacheManager.getCache(settings.getCacheName()).evict("traspaso_detalle_api_"+detalle.getId());
-            TraspasoDetalle nuevoDetalle = detalleRepo.save(service.toEntity(detalle));
+            TraspasoDetalle nuevoDetalle = service.toEntity(detalle);
             Persona p = nuevoDetalle.getJugador();
             Club c = nuevoDetalle.getClubDestino();
             p.setClub(c);
             cacheManager.getCache(settings.getCacheName()).evict("persona_api_"+p.getId());
             personaRepo.save(p);
+            nuevoDetalles.add(nuevoDetalle);
 
         }
+
+        cacheManager.getCache(settings.getCacheName()).evictIfPresent("traspaso_api_"+cabecera.getId());
+        cabecera.editDetalle(nuevoDetalles);
+        cabecera = traspasoRepo.save(cabecera);
 
         return toDTO(cabecera);
     }

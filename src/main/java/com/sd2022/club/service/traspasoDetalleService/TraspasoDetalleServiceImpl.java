@@ -18,6 +18,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -49,10 +50,6 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
     public TraspasoDetalle toEntity(TraspasoDetalleDTO dto) throws NotFoundException, BadRequestException {
         TraspasoDetalle ent = new TraspasoDetalle();
         Traspaso cabecera = traspasoRepo.findById(dto.getIdTraspaso());
-
-        if(cabecera == null){
-            throw new BadRequestException(env.getProperty("cabeceraerror"));
-        }
         ent.setTraspaso(cabecera);
         Club destino = clubRepo.findById(dto.getClubDestino());
         Persona traspasable = personaRepo.findById(dto.getIdPersona());
@@ -92,6 +89,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
         dto.setClubDestino(entity.getClubDestino().getId());
         dto.setIdPersona(entity.getJugador().getId());
         dto.setId(entity.getId());
+
         return dto;
     }
 
@@ -118,6 +116,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
     public TraspasoDetalleDTO add(TraspasoDetalleDTO dto) throws NotFoundException, BadRequestException {
         return null;
     }
+
 
     @Override
     public TraspasoDetalleResultDTO getByIdTraspaso(int idTraspaso, Pageable page) {
