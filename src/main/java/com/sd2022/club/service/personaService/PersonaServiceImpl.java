@@ -120,6 +120,8 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
                 throw new BadRequestException(env.getProperty("rolerror"));
             }
 
+
+
             if(p == null || p.isDeleted()){
                 throw new NotFoundException(env.getProperty("notfound"));
             } else{
@@ -236,8 +238,7 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         dto.setCat(entity.getCat());
         dto.setEmail(entity.getEmail());
         dto.setUsername(entity.getUsername());
-        Date nacimientoDate = entity.getNacimiento();
-        String nacimiento = new SimpleDateFormat(env.getProperty("formatofecha")).format(nacimientoDate);
+        String nacimiento = entity.getNacimiento().toString();
         dto.setNacimiento(nacimiento);
         if(entity.getClub() == null || entity.getClub().isDeleted()){
             dto.setIdClub(-1);

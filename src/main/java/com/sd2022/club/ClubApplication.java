@@ -6,6 +6,8 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.ImportResource;
 
+import java.util.TimeZone;
+
 @EnableCaching
 @SpringBootApplication
 @ImportResource("classpath:memcached.xml")
@@ -13,6 +15,7 @@ import org.springframework.context.annotation.ImportResource;
 public class ClubApplication {
 
 	public static void main(String[] args) {
+		TimeZone.setDefault( TimeZone.getTimeZone("UTC"));
 		SpringApplication.run(ClubApplication.class, args);
 	}
 

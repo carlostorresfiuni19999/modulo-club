@@ -66,9 +66,8 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     public TraspasoDTO toDTO(Traspaso entity) {
         TraspasoDTO dto = new TraspasoDTO();
         dto.setId(entity.getId());
-        SimpleDateFormat format = new SimpleDateFormat(env.getProperty("formatofecha"));
-        format.setTimeZone(TimeZone.getTimeZone("America/Asuncion"));
-        dto.setFechaTraspaso(format.format(entity.getFechaTraspaso()));
+        Date fechaTraspaso = entity.getFechaTraspaso();
+        dto.setFechaTraspaso(fechaTraspaso.toString());
         return dto;
     }
 
@@ -95,6 +94,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
 
         BaseResultDTO<TraspasoDTO> result = new TraspasoDTOResult();
         result.setDtos(dtos);
+        result.setPages(traspasoRepo.findAll(page).getTotalPages());
         return result;
     }
 

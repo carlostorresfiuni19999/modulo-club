@@ -7,7 +7,6 @@ import com.sd2022.club.errors.BadRequestException;
 import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.traspasoService.TraspasoServiceImpl;
 import org.apache.log4j.Logger;
-import org.springframework.cache.CacheManager;
 import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -39,6 +38,7 @@ public class TraspasoController {
         return new ResponseEntity(result, HttpStatus.OK);
     }
 
+    @CrossOrigin(origins = "*")
     @PostMapping
     public ResponseEntity add(@RequestBody TraspasoCreateDTO traspaso){
         TraspasoDTO result = null;
@@ -55,6 +55,7 @@ public class TraspasoController {
     }
 
 
+    @CrossOrigin(origins = "*")
 
     @DeleteMapping("/{id}")
     public ResponseEntity delete(@PathVariable(value="id") int id){
@@ -67,6 +68,8 @@ public class TraspasoController {
         }
     }
 
+    @CrossOrigin(origins = "*")
+
     @GetMapping("/{id}")
     public ResponseEntity findById(@PathVariable(value ="id") int id){
         TraspasoDTO result;
@@ -78,7 +81,7 @@ public class TraspasoController {
         }
         return new ResponseEntity(result, HttpStatus.OK);
     }
-
+    @CrossOrigin(origins = "*")
     @GetMapping("/fechas/{inicio}/{fin}/{page}")
     public ResponseEntity filtrarEnFechas(@PathVariable("inicio") String inicio, @PathVariable("fin") String fin, @PathVariable(value = "page") int page){
         try {
@@ -93,7 +96,7 @@ public class TraspasoController {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
-
+    @CrossOrigin(origins = "*")
     @PutMapping("/{id}")
     public ResponseEntity edit(@PathVariable(value = "id") int id, @RequestBody TraspasoCreateDTO dto){
         try {

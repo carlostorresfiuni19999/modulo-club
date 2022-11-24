@@ -22,7 +22,7 @@ public class TraspasoDetalleController {
     private Environment env;
 
 
-
+    @CrossOrigin(origins = "*")
     @GetMapping("/page/{page}/{id}")
     public ResponseEntity findByIdTraspaso(@PathVariable(value = "page") int page, @PathVariable(value = "id") int id){
         BaseResultDTO result =
