@@ -18,6 +18,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -46,6 +47,7 @@ public class TraspasoDetalleServiceImpl extends BaseServiceImpl<TraspasoDetalleD
     @Autowired
     private Settings settings;
 
+    @Transactional
     @Override
     public TraspasoDetalle toEntity(TraspasoDetalleDTO dto) throws NotFoundException, BadRequestException {
         TraspasoDetalle ent = new TraspasoDetalle();

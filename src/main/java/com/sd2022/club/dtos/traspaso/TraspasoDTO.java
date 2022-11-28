@@ -10,6 +10,8 @@ public class TraspasoDTO extends BaseDTO implements Serializable {
     private String fechaTraspaso;
     private static final long serialVersionUID = 1L;
 
+    private String descripcion;
+
     public int getId() {
         return id;
     }
@@ -24,5 +26,13 @@ public class TraspasoDTO extends BaseDTO implements Serializable {
 
     public void setFechaTraspaso(String fechaTraspaso) {
         this.fechaTraspaso = fechaTraspaso;
+    }
+
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
     }
 }

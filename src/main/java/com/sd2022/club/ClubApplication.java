@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.ImportResource;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.TimeZone;
 
@@ -12,6 +13,7 @@ import java.util.TimeZone;
 @SpringBootApplication
 @ImportResource("classpath:memcached.xml")
 @EntityScan({ "com.sd2022.entities.models"})
+@EnableScheduling
 public class ClubApplication {
 
 	public static void main(String[] args) {

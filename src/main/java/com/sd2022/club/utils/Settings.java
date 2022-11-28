@@ -15,6 +15,12 @@ public class Settings {
     private String cacheName;
 
 
+    public static final String CRON = "0 15 * * * *";
+
+    public static final boolean ALLOW = true;
+    public static final boolean REJECT = false;
+
+
     public String getCacheName() {
         return cacheName;
     }

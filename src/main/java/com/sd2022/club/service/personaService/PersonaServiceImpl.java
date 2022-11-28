@@ -20,6 +20,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -225,6 +226,15 @@ public class PersonaServiceImpl extends BaseServiceImpl<PersonaDTO, Persona, Bas
         ent.setRol(rol);
 
         return ent;
+    }
+
+    @Scheduled(cron = Settings.CRON)
+    public void loadPersonas(){
+        personaRepo.findByDeleted(false)
+                .stream().map(this::toDTO)
+                .forEach(d -> {
+                    cacheManager.getCache(settings.getCacheName()).putIfAbsent("persona_api_"+d.getId(), d);
+                });
     }
 
     @Override

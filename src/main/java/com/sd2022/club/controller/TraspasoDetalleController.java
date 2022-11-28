@@ -1,6 +1,9 @@
 package com.sd2022.club.controller;
 
 import com.sd2022.club.dtos.base.BaseResultDTO;
+import com.sd2022.club.dtos.traspasodetalle.TraspasoDetalleDTO;
+import com.sd2022.club.errors.BadRequestException;
+import com.sd2022.club.errors.NotFoundException;
 import com.sd2022.club.service.traspasoDetalleService.TraspasoDetalleServiceImpl;
 import org.jboss.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ public class TraspasoDetalleController {
     @CrossOrigin(origins = "*")
     @GetMapping("/page/{page}/{id}")
     public ResponseEntity findByIdTraspaso(@PathVariable(value = "page") int page, @PathVariable(value = "id") int id){
+
         BaseResultDTO result =
                 service.getByIdTraspaso(id, PageRequest.of(page, Integer.parseInt(env.getProperty("pagesize"))));
 

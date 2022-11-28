@@ -24,6 +24,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -57,8 +60,10 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     public Traspaso toEntity(TraspasoDTO dto) {
         Traspaso cabecera = new Traspaso();
         cabecera.setFechaTraspaso(new Date());
+        cabecera.setDescripcion(dto.getDescripcion());
         return cabecera;
     }
+
 
     @Override
     public TraspasoDTO toDTO(Traspaso entity) {
@@ -66,9 +71,11 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         dto.setId(entity.getId());
         Date fechaTraspaso = entity.getFechaTraspaso();
         dto.setFechaTraspaso(fechaTraspaso.toString());
+        dto.setDescripcion(entity.getDescripcion());
         return dto;
     }
 
+    @Transactional
     @Cacheable(value = Settings.CACHE_NAME, key = "'traspaso_api_' +#id")
     @Override
     public TraspasoDTO findById(int id) throws NotFoundException {
@@ -81,6 +88,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     }
 
     @Override
+    @Transactional
     public BaseResultDTO<TraspasoDTO> getAll(Pageable page) {
         List<TraspasoDTO> dtos = traspasoRepo.findAll(page)
                 .map(r -> {
@@ -97,6 +105,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     }
 
     @Override
+    @Transactional
     public void remove(int id) throws NotFoundException {
         Traspaso cabecera = traspasoRepo.findById(id);
         if(cabecera == null) {
@@ -137,6 +146,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
     }
 
     @Override
+    @Transactional
     public BaseResultDTO<TraspasoDTO> filtrarEntreFechas(String inicio, String fin, Pageable page) throws BadRequestException {
 
         Date fechaInicio;
@@ -163,7 +173,9 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         return result;
     }
 
+
     @Override
+    @Transactional
     public TraspasoDTO save(TraspasoCreateDTO traspaso) throws NotFoundException, BadRequestException {
 
         Persona p;
@@ -189,6 +201,7 @@ public class TraspasoServiceImpl extends BaseServiceImpl<TraspasoDTO, Traspaso, 
         return toDTO(cabecera);
     }
 
+    @Transactional
     public TraspasoDTO toEdit(int id, TraspasoCreateDTO traspaso) throws BadRequestException, NotFoundException {
         if(id != traspaso.getId()){
             throw new BadRequestException(env.getProperty("primarykeyerror"));
