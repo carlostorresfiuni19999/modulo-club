@@ -6,13 +6,11 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
 @Component
-@PropertySource("classpath:memcached.properties")
 public class Settings {
 
     public static final String CACHE_NAME = "platform-cache";
 
-    @Value("${cache.name}")
-    private String cacheName;
+
 
 
     public static final String CRON = "0 15 * * * *";
@@ -22,6 +20,6 @@ public class Settings {
 
 
     public String getCacheName() {
-        return cacheName;
+        return CACHE_NAME;
     }
 }
